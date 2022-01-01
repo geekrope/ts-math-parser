@@ -1,3 +1,4 @@
+"use strict";
 var OperatorPrecedence;
 (function (OperatorPrecedence) {
     OperatorPrecedence[OperatorPrecedence["First"] = 0] = "First";
@@ -120,7 +121,6 @@ class MathParser {
                     if (oper == "-") {
                         operands[operandIndex] = new Operand(new UnaryOperation(new ArgumentArray([operands[operandIndex]]), MathParser.NegativeFunction));
                     }
-                    // -- = + => split[token]=""
                     else if (oper != "--") {
                         throw new Error(`Can't parse operator: ${split[token]}`);
                     }
@@ -137,7 +137,7 @@ class MathParser {
         }
         return { operands: operands, expression: split.join("") };
     }
-    static GetOperands(expression, parameters = null, addedOperands = null) {
+    static GetOperands(expression, parameters, addedOperands) {
         let operands = [];
         if (addedOperands != null) {
             operands = operands.concat(addedOperands);
@@ -192,13 +192,13 @@ class MathParser {
             }
         });
         for (let token = 1; token < split.length - 1;) {
-            let currentOperator = null;
+            let currentOperator;
             operators.forEach((oper) => {
                 if (oper.Value == split[token]) {
                     currentOperator = oper;
                 }
             });
-            if (currentOperator != null) {
+            if (currentOperator !== undefined) {
                 let firstOperandIndex = parseInt(split[token - 1]);
                 let secondOperandIndex = parseInt(split[token + 1]);
                 let expressionToReplace = `${MathParser.OperandKey}${firstOperandIndex}${MathParser.OperandKey}${currentOperator.Value}${MathParser.OperandKey}${secondOperandIndex}${MathParser.OperandKey}`;
@@ -213,7 +213,7 @@ class MathParser {
         }
         return { operands: operands, expression: expression };
     }
-    static SplitExpression(expression, parameters = null, operands = null) {
+    static SplitExpression(expression, parameters, operands) {
         let calculatedOperands = MathParser.GetOperands(expression, parameters, operands);
         let calculatedOperators = MathParser.CalculateOperators(calculatedOperands.expression, calculatedOperands.operands);
         let thirdLevel = MathParser.GroupBinaryOperations(calculatedOperators.expression, calculatedOperators.operands, OperatorPrecedence.Third);
@@ -221,15 +221,18 @@ class MathParser {
         let firstLevel = MathParser.GroupBinaryOperations(secondLevel.expression, secondLevel.operands, OperatorPrecedence.First);
         return firstLevel.operands[MathParser.ParseOperandIndex(firstLevel.expression)];
     }
-    static ParseOperand(operand, parameters = null, addedOperands = null) {
+    static ParseOperand(operand, parameters, addedOperands) {
         let allParameters = MathParser.GetParameters(parameters);
         if (!isNaN(Number(operand))) {
             return new Operand(parseFloat(operand));
         }
         else if (operand[0].toString() == MathParser.OperandKey && operand[operand.length - 1].toString() == MathParser.OperandKey) {
+            if (!addedOperands) {
+                throw new Error("addedOperands is not defined");
+            }
             return addedOperands[MathParser.ParseOperandIndex(operand)];
         }
-        else if (allParameters != null && allParameters.has(operand)) {
+        else if (allParameters.has(operand)) {
             return new Operand(allParameters.get(operand));
         }
         else if (operand.indexOf(MathParser.Enumerator) != -1) {
@@ -261,25 +264,27 @@ class MathParser {
                                 returnValue = new Operand(new UnaryOperation(value.Value, func));
                             }
                         }
+                        else if (1 != func.ArgumentsCount) {
+                            throw new Error("Function doesn't take 1 argument");
+                        }
                         else {
-                            if (1 != func.ArgumentsCount) {
-                                throw new Error("Function doesn't take 1 argument");
-                            }
-                            else {
-                                returnValue = new Operand(new UnaryOperation(new ArgumentArray([value]), func));
-                            }
+                            returnValue = new Operand(new UnaryOperation(new ArgumentArray([value]), func));
                         }
                     }
                     else {
-                        return null;
+                        throw new Error(`Function ${func.Type} is already exists`);
                     }
                 }
             });
-            return returnValue;
+            if (returnValue !== undefined) {
+                return returnValue;
+            }
+            else {
+                throw new Error(`MathParser.Functions.length == 0. Logical error`);
+            }
         }
-        throw new Error(`Can't parse operand: ${operand}`);
     }
-    static GetParameters(parameters = null) {
+    static GetParameters(parameters) {
         let output = new Map();
         MathParser.Constants.forEach((constant) => {
             output.set(constant.Name, constant);
@@ -299,7 +304,7 @@ class MathParser {
     static ParseOperandIndex(operand) {
         return parseInt(Extensions.replaceAll(MathParser.OperandKey, "", operand));
     }
-    static OpenBraces(expression, parameters = null) {
+    static OpenBraces(expression, parameters) {
         let operands = [];
         for (; expression.indexOf("(") != -1;) {
             let expressionLast = expression;
@@ -324,13 +329,11 @@ class MathParser {
             }
             let expressionToEvaluate = expression.substr(openIndex + 1, closeIndex - (openIndex + 1));
             let expressionToReplace = "(" + expressionToEvaluate + ")";
-            if (expressionToEvaluate.indexOf(MathParser.Enumerator) != -1) //function args
-             {
+            if (expressionToEvaluate.indexOf(MathParser.Enumerator) != -1) {
                 let resultOperand = MathParser.ParseOperand(expressionToEvaluate, parameters, operands);
                 operands.push(resultOperand);
             }
-            else //inner expression
-             {
+            else {
                 let resultOperand = MathParser.SplitExpression(expressionToEvaluate, parameters, operands);
                 operands.push(resultOperand);
             }
@@ -341,7 +344,7 @@ class MathParser {
         }
         return { operands: operands, expression: expression };
     }
-    static Parse(expression, parameters = null) {
+    static Parse(expression, parameters) {
         expression = expression.replace(/\s/gi, "").replace(/\,/gi, ".");
         let openedBraces = MathParser.OpenBraces(expression, parameters);
         return MathParser.SplitExpression(openedBraces.expression, parameters, openedBraces.operands);
@@ -381,7 +384,7 @@ class MathParser {
             case "!=":
                 return firstOperand != secondOperand;
             default:
-                return null;
+                throw new Error(`Unknown operator: ${operation.Operator.Value}`);
         }
     }
     static EvaluateOperand(operand) {
@@ -448,12 +451,54 @@ MathParser.Functions = [
     new MathFunction("log", 2, (value) => { return Math.log(value[0]) / Math.log(value[1]); }),
     new MathFunction("root", 2, (value) => { return Math.pow(value[0], 1 / value[1]); }),
 ];
-function Evaluate() {
-    var input = document.getElementById('inp');
-    var result = document.getElementById('res');
-    if (input && result) {
-        var parse = MathParser.Parse(input.value);
-        result.innerHTML = MathParser.EvaluateOperand(parse).toString();
+class UnitTests {
+    static DeclareTestCase(input, expectedValue) {
+        UnitTests.TestCases.push({ input: input, expectedValue: expectedValue });
+    }
+    static Compare(compared, expected, delta = 0) {
+        if (typeof compared == "number" && typeof expected == "number") {
+            return expected - delta <= compared && expected + delta >= compared;
+        }
+        else {
+            return compared == expected;
+        }
+    }
+    static EvaluateHelper(expression) {
+        let evaluated = MathParser.EvaluateOperand(MathParser.Parse(expression));
+        return evaluated;
+    }
+    static RunTests() {
+        UnitTests.TestCases.forEach((testCase, index) => {
+            let evaluated = UnitTests.EvaluateHelper(testCase.input);
+            let passed = UnitTests.Compare(evaluated, testCase.expectedValue, UnitTests.Delta);
+            if (passed) {
+                console.log(`%c Test ${index} passed. Received: ${evaluated}, expected: ${testCase.expectedValue}`, 'background: #0a0; color: #fff');
+            }
+            else {
+                console.log(`%c Test ${index} failed. Received: ${evaluated}, expected: ${testCase.expectedValue}`, 'background: #a00; color: #fff');
+            }
+        });
     }
 }
+UnitTests.TestCases = [];
+UnitTests.Delta = 0.01;
+function Evaluate() {
+    let input = document.getElementById('inp');
+    let result = document.getElementById('res');
+    if (input && result) {
+        result.innerHTML = UnitTests.EvaluateHelper(input.value).toString();
+    }
+}
+UnitTests.DeclareTestCase("cos(3550/20)*20+100", Math.cos(3550 / 20.0) * 20 + 100);
+UnitTests.DeclareTestCase("4^(2*5^(1/2)+4)*2^(-3-4*5^(1/2))+(6^(3^(1/2))*7^(3^(1/2)))/(42^(3^(1/2)-1))+(-12)/((sin(131/180*3,1415926535897932384626433832795))^2+(sin(221/180*3,1415926535897932384626433832795))^2)+44*sqrt(3)*tan(-480/180*3,1415926535897932384626433832795)*46*tan(7/180*3,1415926535897932384626433832795)*tan(83/180*3,1415926535897932384626433832795)", 6134.0);
+UnitTests.DeclareTestCase("4^(2*5^(1/2)+4)*2^(-3-4*5^(1/2))+(6^(3^(1/2))*7^(3^(1/2)))/(42^(3^(1/2)-1))+(-12)/((sin(131/180*pi))^2+(sin(221/180*pi))^2)+44*sqrt(3)*tan(-480/180*pi)*46*tan(7/180*pi)*tan(83/180*pi)", 6134.0);
+UnitTests.DeclareTestCase("46*tan(7/180*3,1415926535897932384626433832795)*tan(83/180*3,1415926535897932384626433832795)", 46.0);
+UnitTests.DeclareTestCase("(-12)/((sin(131/180*3,1415926535897932384626433832795))^2+(sin(221/180*3,1415926535897932384626433832795))^2)", -12.0);
+UnitTests.DeclareTestCase("(6^(3^(1/2))*7^(3^(1/2)))/(42^(3^(1/2)-1))", 42.0);
+UnitTests.DeclareTestCase("4 ^ (2 * 5 ^ (1 / 2) + 4) * 2 ^ (-3 - 4 * 5 ^ (1 / 2))", 32.0);
+UnitTests.DeclareTestCase("cos(rad(sin(rad(deg(rad(30))))))", Math.cos(Math.sin(Math.PI / 6) / 180 * Math.PI));
+UnitTests.DeclareTestCase("deg(acos(cos(asin(sin(rad(30))))))", 30.0);
+UnitTests.DeclareTestCase("log(10^6;root(10^4;10+10))", 30.0);
+UnitTests.DeclareTestCase("log(10^6;root(10+10;10^4))", 46117.3);
+UnitTests.DeclareTestCase("2+2", 5.0);
 //# sourceMappingURL=app.js.map
