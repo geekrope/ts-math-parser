@@ -557,35 +557,68 @@ class MathParser {
 	}
 }
 
+interface TestCase {
+	(): void;
+}
+
 class UnitTests {
-	private static TestCases: { input: string, expectedValue: number | boolean }[] = [];
+	private static TestCases: TestCase[] = [];
 	private static readonly Delta = 0.01;
 
-	public static DeclareTestCase(input: string, expectedValue: number | boolean): void {
-		UnitTests.TestCases.push({ input: input, expectedValue: expectedValue });
-	}
-	public static Compare(compared: any, expected: any, delta: number = 0): boolean {
-		if (typeof compared == "number" && typeof expected == "number") {
-			return expected - delta <= compared && expected + delta >= compared;
+	private static DisplayResult(received: string, expected: string, passed: boolean, type: string) {
+		if (passed) {
+			console.log(`%c Test ${type} passed. Received: ${received}, expected: ${expected}`, 'background: #0a0; color: #fff');
 		}
 		else {
-			return compared == expected;
+			console.log(`%c Test ${type} failed. Received: ${received}, expected: ${expected}`, 'background: #a00; color: #fff');
 		}
 	}
+
+	public static DeclareTestCase(testCase: TestCase): void {
+		UnitTests.TestCases.push(testCase);
+	}
+
+	public static AreEqual(expression: string, expected: number | boolean): void {
+		let compared = UnitTests.EvaluateHelper(expression);
+		let passed: boolean;
+		if (typeof compared == "number" && typeof expected == "number") {
+			passed = expected - UnitTests.Delta <= compared && expected + UnitTests.Delta >= compared;
+		}
+		else {
+			passed = compared == expected;
+		}
+		UnitTests.DisplayResult(compared.toString(), expected.toString(), passed, `"are equal"`);
+	}
+	public static AreUnequal(expression: string, expected: number | boolean): void {
+		let compared = UnitTests.EvaluateHelper(expression);
+		let passed: boolean;
+		if (typeof compared == "number" && typeof expected == "number") {
+			passed = !(expected - UnitTests.Delta <= compared && expected + UnitTests.Delta >= compared);
+		}
+		else {
+			passed = compared != expected;
+		}
+		UnitTests.DisplayResult(compared.toString(), expected.toString(), passed, `"are unequal"`);
+	}
+	public static ThrowError(expression: string): boolean {
+		try {
+			let result = UnitTests.EvaluateHelper(expression);
+			UnitTests.DisplayResult(result.toString(), "Error", false, `"throw exception"`);
+			return false;
+		}
+		catch {
+			UnitTests.DisplayResult("Error", "Error", true, `"throw exception"`);
+			return true;
+		}
+	}
+
 	public static EvaluateHelper(expression: string): number | boolean {
 		let evaluated = MathParser.EvaluateOperand(MathParser.Parse(expression));
 		return evaluated;
 	}
 	public static RunTests(): void {
-		UnitTests.TestCases.forEach((testCase, index) => {
-			let evaluated = UnitTests.EvaluateHelper(testCase.input);
-			let passed = UnitTests.Compare(evaluated, testCase.expectedValue, UnitTests.Delta);
-			if (passed) {
-				console.log(`%c Test ${index + 1} passed. Received: ${evaluated}, expected: ${testCase.expectedValue}`, 'background: #0a0; color: #fff');
-			}
-			else {
-				console.log(`%c Test ${index + 1} failed. Received: ${evaluated}, expected: ${testCase.expectedValue}`, 'background: #a00; color: #fff');
-			}
+		UnitTests.TestCases.forEach((testCase) => {
+			testCase();
 		})
 	}
 }
@@ -598,19 +631,48 @@ function Evaluate() {
 	}
 }
 
-UnitTests.DeclareTestCase("cos(3550/20)*20+100", Math.cos(3550 / 20.0) * 20 + 100);
-UnitTests.DeclareTestCase(
-	"4^(2*5^(1/2)+4)*2^(-3-4*5^(1/2))+(6^(3^(1/2))*7^(3^(1/2)))/(42^(3^(1/2)-1))+(-12)/((sin(131/180*3,1415926535897932384626433832795))^2+(sin(221/180*3,1415926535897932384626433832795))^2)+44*sqrt(3)*tan(-480/180*3,1415926535897932384626433832795)*46*tan(7/180*3,1415926535897932384626433832795)*tan(83/180*3,1415926535897932384626433832795)",
-	6134.0);
-UnitTests.DeclareTestCase(
-	"4^(2*5^(1/2)+4)*2^(-3-4*5^(1/2))+(6^(3^(1/2))*7^(3^(1/2)))/(42^(3^(1/2)-1))+(-12)/((sin(131/180*pi))^2+(sin(221/180*pi))^2)+44*sqrt(3)*tan(-480/180*pi)*46*tan(7/180*pi)*tan(83/180*pi)",
-	6134.0);
-UnitTests.DeclareTestCase("46*tan(7/180*3,1415926535897932384626433832795)*tan(83/180*3,1415926535897932384626433832795)", 46.0);
-UnitTests.DeclareTestCase("(-12)/((sin(131/180*3,1415926535897932384626433832795))^2+(sin(221/180*3,1415926535897932384626433832795))^2)", -12.0);
-UnitTests.DeclareTestCase("(6^(3^(1/2))*7^(3^(1/2)))/(42^(3^(1/2)-1))", 42.0);
-UnitTests.DeclareTestCase("4 ^ (2 * 5 ^ (1 / 2) + 4) * 2 ^ (-3 - 4 * 5 ^ (1 / 2))", 32.0);
-UnitTests.DeclareTestCase("cos(rad(sin(rad(deg(rad(30))))))", Math.cos(Math.sin(Math.PI / 6) / 180 * Math.PI));
-UnitTests.DeclareTestCase("deg(acos(cos(asin(sin(rad(30))))))", 30.0);
-UnitTests.DeclareTestCase("log(10^6;root(10^4;10+10))", 30.0);
-UnitTests.DeclareTestCase("log(10^6;root(10+10;10^4))", 46117.3);
-UnitTests.DeclareTestCase("2+2", 5.0);
+UnitTests.DeclareTestCase(() => {
+	UnitTests.AreEqual("cos(3550/20)*20+100", Math.cos(3550 / 20.0) * 20 + 100);
+});
+UnitTests.DeclareTestCase(() => {
+	UnitTests.AreEqual(
+		"4^(2*5^(1/2)+4)*2^(-3-4*5^(1/2))+(6^(3^(1/2))*7^(3^(1/2)))/(42^(3^(1/2)-1))+(-12)/((sin(131/180*3,1415926535897932384626433832795))^2+(sin(221/180*3,1415926535897932384626433832795))^2)+44*sqrt(3)*tan(-480/180*3,1415926535897932384626433832795)*46*tan(7/180*3,1415926535897932384626433832795)*tan(83/180*3,1415926535897932384626433832795)",
+		6134.0);
+});
+UnitTests.DeclareTestCase(() => {
+	UnitTests.AreEqual(
+		"4^(2*5^(1/2)+4)*2^(-3-4*5^(1/2))+(6^(3^(1/2))*7^(3^(1/2)))/(42^(3^(1/2)-1))+(-12)/((sin(131/180*pi))^2+(sin(221/180*pi))^2)+44*sqrt(3)*tan(-480/180*pi)*46*tan(7/180*pi)*tan(83/180*pi)",
+		6134.0);
+});
+UnitTests.DeclareTestCase(() => {
+	UnitTests.AreEqual("46*tan(7/180*3,1415926535897932384626433832795)*tan(83/180*3,1415926535897932384626433832795)", 46.0);
+});
+UnitTests.DeclareTestCase(() => {
+	UnitTests.AreEqual("(-12)/((sin(131/180*3,1415926535897932384626433832795))^2+(sin(221/180*3,1415926535897932384626433832795))^2)", -12.0);
+});
+UnitTests.DeclareTestCase(() => {
+	UnitTests.AreEqual("(6^(3^(1/2))*7^(3^(1/2)))/(42^(3^(1/2)-1))", 42.0);
+});
+UnitTests.DeclareTestCase(() => {
+	UnitTests.AreEqual("4 ^ (2 * 5 ^ (1 / 2) + 4) * 2 ^ (-3 - 4 * 5 ^ (1 / 2))", 32.0);
+});
+UnitTests.DeclareTestCase(() => {
+	UnitTests.AreEqual("cos(rad(sin(rad(deg(rad(30))))))", Math.cos(Math.sin(Math.PI / 6) / 180 * Math.PI));
+});
+UnitTests.DeclareTestCase(() => {
+	UnitTests.AreEqual("deg(acos(cos(asin(sin(rad(30))))))", 30.0);
+});
+UnitTests.DeclareTestCase(() => {
+	UnitTests.AreEqual("log(10^6;root(10^4;10+10))", 30.0);
+});
+UnitTests.DeclareTestCase(() => {
+	UnitTests.AreEqual("log(10^6;root(10+10;10^4))", 46117.3);
+});
+UnitTests.DeclareTestCase(() => {
+	UnitTests.AreUnequal("2+2", 5);
+});
+UnitTests.DeclareTestCase(() => {
+	UnitTests.ThrowError("sdgphjsdioghiosdnhiosd");
+});
+
+//UnitTests.RunTests()
