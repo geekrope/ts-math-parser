@@ -101,7 +101,7 @@ class MathParser {
             for (let index = oper.length - 1; !MathParser.IsBasicOperator(oper); index--) {
                 if (oper[index] == '-') {
                     sign = -sign;
-                    oper = oper.substr(0, oper.length);
+                    oper = oper.substr(0, oper.length - 1);
                 }
                 else {
                     throw new Error(`Incorrect operator: ${oper}`);
