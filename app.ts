@@ -194,7 +194,7 @@ class MathParser {
 
 		new MathFunction("!", 1, (value: (literal)[]) => { return !Extensions.asBoolean(value[0]); }),
 
-		new MathFunction("fact", 1, (value: (literal)[]) => { let result = 1; for (let i = 1; i < Extensions.asNumber(value[0]); i++) { result *= i } return result; }),
+		new MathFunction("fact", 1, (value: (literal)[]) => { let result = 1; for (let i = 1; i <= Extensions.asNumber(value[0]); i++) { result *= i } return result; }),
 		new MathFunction("f'", 1, () => { throw new Error("Not implemented") }),
 
 		new MathFunction("rand", 2, (value: (literal)[]) => { return Math.random() * (Extensions.asNumber(value[1]) - Extensions.asNumber(value[0])) + Extensions.asNumber(value[0]); }),
@@ -406,33 +406,20 @@ class MathParser {
 				if (func.Type.length < operand.length && operand.substr(0, func.Type.length) == func.Type) {
 					let innerExpression = operand.substr(func.Type.length, operand.length - func.Type.length);
 
-					let funcExists = false;
-
-					MathParser.Functions.forEach((checkFunction) => {
-						if (checkFunction.Type.length < innerExpression.length && innerExpression.substr(0, checkFunction.Type.length) == checkFunction.Type) {
-							funcExists = true;
-						}
-					});
-
-					if (!funcExists) {
-						let value = MathParser.ParseOperand(innerExpression, parameters, addedOperands);
-						if (value.Value instanceof ArgumentArray) {
-							if (value.Value.Length != func.ArgumentsCount) {
-								throw new Error(`Function doesn't take ${value.Value.Length} arguments`);
-							}
-							else {
-								returnValue = new Operand(new UnaryOperation(value.Value, func));
-							}
-						}
-						else if (1 != func.ArgumentsCount) {
-							throw new Error("Function doesn't take 1 argument");
+					let value = MathParser.ParseOperand(innerExpression, parameters, addedOperands);
+					if (value.Value instanceof ArgumentArray) {
+						if (value.Value.Length != func.ArgumentsCount) {
+							throw new Error(`Function doesn't take ${value.Value.Length} arguments`);
 						}
 						else {
-							returnValue = new Operand(new UnaryOperation(new ArgumentArray([value]), func));
+							returnValue = new Operand(new UnaryOperation(value.Value, func));
 						}
 					}
+					else if (1 != func.ArgumentsCount) {
+						throw new Error("Function doesn't take 1 argument");
+					}
 					else {
-						throw new Error(`Function ${func.Type} already exists`);
+						returnValue = new Operand(new UnaryOperation(new ArgumentArray([value]), func));
 					}
 				}
 			});
@@ -722,6 +709,15 @@ UnitTests.DeclareTestCase(() => {
 });
 UnitTests.DeclareTestCase(() => {
 	UnitTests.ThrowError("!(1)");
+});
+UnitTests.DeclareTestCase(() => {
+	UnitTests.AreEqual("cossinlnraddeg(pi/2)", 0.9);
+});
+UnitTests.DeclareTestCase(() => {
+	UnitTests.AreEqual("sincos(-2)", -0.4);
+});
+UnitTests.DeclareTestCase(() => {
+	UnitTests.AreEqual("root(root(2;cossinlnraddeg(pi/2));log(pi;e))", 1.95);
 });
 
 //UnitTests.RunTests()

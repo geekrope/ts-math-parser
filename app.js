@@ -264,31 +264,20 @@ class MathParser {
             MathParser.Functions.forEach((func) => {
                 if (func.Type.length < operand.length && operand.substr(0, func.Type.length) == func.Type) {
                     let innerExpression = operand.substr(func.Type.length, operand.length - func.Type.length);
-                    let funcExists = false;
-                    MathParser.Functions.forEach((checkFunction) => {
-                        if (checkFunction.Type.length < innerExpression.length && innerExpression.substr(0, checkFunction.Type.length) == checkFunction.Type) {
-                            funcExists = true;
-                        }
-                    });
-                    if (!funcExists) {
-                        let value = MathParser.ParseOperand(innerExpression, parameters, addedOperands);
-                        if (value.Value instanceof ArgumentArray) {
-                            if (value.Value.Length != func.ArgumentsCount) {
-                                throw new Error(`Function doesn't take ${value.Value.Length} arguments`);
-                            }
-                            else {
-                                returnValue = new Operand(new UnaryOperation(value.Value, func));
-                            }
-                        }
-                        else if (1 != func.ArgumentsCount) {
-                            throw new Error("Function doesn't take 1 argument");
+                    let value = MathParser.ParseOperand(innerExpression, parameters, addedOperands);
+                    if (value.Value instanceof ArgumentArray) {
+                        if (value.Value.Length != func.ArgumentsCount) {
+                            throw new Error(`Function doesn't take ${value.Value.Length} arguments`);
                         }
                         else {
-                            returnValue = new Operand(new UnaryOperation(new ArgumentArray([value]), func));
+                            returnValue = new Operand(new UnaryOperation(value.Value, func));
                         }
                     }
+                    else if (1 != func.ArgumentsCount) {
+                        throw new Error("Function doesn't take 1 argument");
+                    }
                     else {
-                        throw new Error(`Function ${func.Type} already exists`);
+                        returnValue = new Operand(new UnaryOperation(new ArgumentArray([value]), func));
                     }
                 }
             });
@@ -454,18 +443,35 @@ MathParser.Functions = [
     new MathFunction("sin", 1, (value) => { return Math.sin(Extensions.asNumber(value[0])); }),
     new MathFunction("tan", 1, (value) => { return Math.sin(Extensions.asNumber(value[0])) / Math.cos(Extensions.asNumber(value[0])); }),
     new MathFunction("cot", 1, (value) => { return Math.cos(Extensions.asNumber(value[0])) / Math.sin(Extensions.asNumber(value[0])); }),
+    new MathFunction("cosh", 1, (value) => { return Math.cosh(Extensions.asNumber(value[0])); }),
+    new MathFunction("sinh", 1, (value) => { return Math.sinh(Extensions.asNumber(value[0])); }),
+    new MathFunction("tanh", 1, (value) => { return Math.sinh(Extensions.asNumber(value[0])) / Math.cosh(Extensions.asNumber(value[0])); }),
+    new MathFunction("coth", 1, (value) => { return Math.cosh(Extensions.asNumber(value[0])) / Math.sinh(Extensions.asNumber(value[0])); }),
     new MathFunction("acos", 1, (value) => { return Math.acos(Extensions.asNumber(value[0])); }),
     new MathFunction("asin", 1, (value) => { return Math.asin(Extensions.asNumber(value[0])); }),
     new MathFunction("atan", 1, (value) => { return Math.atan(Extensions.asNumber(value[0])); }),
     new MathFunction("acot", 1, (value) => { return Math.atan(1 / Extensions.asNumber(value[0])); }),
+    new MathFunction("acosh", 1, (value) => { return Math.acosh(Extensions.asNumber(value[0])); }),
+    new MathFunction("asinh", 1, (value) => { return Math.asinh(Extensions.asNumber(value[0])); }),
+    new MathFunction("atanh", 1, (value) => { return Math.atanh(Extensions.asNumber(value[0])); }),
+    new MathFunction("acoth", 1, (value) => { return Math.atanh(1 / Extensions.asNumber(value[0])); }),
     new MathFunction("sqrt", 1, (value) => { return Math.sqrt(Extensions.asNumber(value[0])); }),
     new MathFunction("cbrt", 1, (value) => { return Math.pow(Extensions.asNumber(value[0]), 1.0 / 3.0); }),
     new MathFunction("ln", 1, (value) => { return Math.log(Extensions.asNumber(value[0])); }),
     new MathFunction("abs", 1, (value) => { return Math.abs(Extensions.asNumber(value[0])); }),
+    new MathFunction("sign", 1, (value) => { return Math.sign(Extensions.asNumber(value[0])); }),
+    new MathFunction("exp", 1, (value) => { return Math.exp(Extensions.asNumber(value[0])); }),
+    new MathFunction("floor", 1, (value) => { return Math.floor(Extensions.asNumber(value[0])); }),
+    new MathFunction("ceil", 1, (value) => { return Math.ceil(Extensions.asNumber(value[0])); }),
+    new MathFunction("round", 1, (value) => { return Math.round(Extensions.asNumber(value[0])); }),
     new MathFunction("!", 1, (value) => { return !Extensions.asBoolean(value[0]); }),
+    new MathFunction("fact", 1, (value) => { let result = 1; for (let i = 1; i <= Extensions.asNumber(value[0]); i++) {
+        result *= i;
+    } return result; }),
+    new MathFunction("f'", 1, () => { throw new Error("Not implemented"); }),
     new MathFunction("rand", 2, (value) => { return Math.random() * (Extensions.asNumber(value[1]) - Extensions.asNumber(value[0])) + Extensions.asNumber(value[0]); }),
     new MathFunction("log", 2, (value) => { return Math.log(Extensions.asNumber(value[0])) / Math.log(Extensions.asNumber(value[1])); }),
-    new MathFunction("root", 2, (value) => { return Math.pow(Extensions.asNumber(value[0]), 1 / Extensions.asNumber(value[1])); }),
+    new MathFunction("root", 2, (value) => { return Math.pow(Extensions.asNumber(value[0]), 1 / Extensions.asNumber(value[1])); })
 ];
 class UnitTests {
     static DisplayResult(received, expected, passed, type) {
@@ -581,5 +587,14 @@ UnitTests.DeclareTestCase(() => {
 });
 UnitTests.DeclareTestCase(() => {
     UnitTests.ThrowError("!(1)");
+});
+UnitTests.DeclareTestCase(() => {
+    UnitTests.AreEqual("cossinlnraddeg(pi/2)", 0.9);
+});
+UnitTests.DeclareTestCase(() => {
+    UnitTests.AreEqual("sincos(-2)", -0.4);
+});
+UnitTests.DeclareTestCase(() => {
+    UnitTests.AreEqual("root(root(2;cossinlnraddeg(pi/2));log(pi;e))", 1.95);
 });
 //# sourceMappingURL=app.js.map

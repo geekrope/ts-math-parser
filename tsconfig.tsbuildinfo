@@ -177,7 +177,7 @@
         "affectsGlobalScope": false
       },
       "./app.ts": {
-        "version": "502c6696c1d9e4b8b45e6db823f39172ba4da55c9411df49972446e883d402dd",
+        "version": "e51f74a358ab649d7270b08faa487d4be2852b2002ac742c22b60436f6c630c8",
         "signature": "336d7ce0301d626234be49bcb3bd3767ec43bf59b4222dfd8222659af9691b07",
         "affectsGlobalScope": true
       }
