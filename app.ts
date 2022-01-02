@@ -2,8 +2,10 @@
 	First, Second, Third
 }
 
+type literal = number | boolean;
+
 interface Func {
-	(value: (number | boolean)[]): number | boolean;
+	(value: (literal)[]): literal;
 }
 
 class Extensions {
@@ -39,19 +41,35 @@ class Extensions {
 	public static replace(value: string, start: number, end: number, replaceValue: string): string {
 		return value.substring(0, start) + replaceValue + value.substr(end);
 	}
+	public static asBoolean(value: literal): boolean {
+		if (typeof value == "boolean") {
+			return value;
+		}
+		else {
+			throw new Error(`Unable to cast ${typeof value} to boolean`);
+		}
+	}
+	public static asNumber(value: literal): number {
+		if (typeof value == "number") {
+			return value;
+		}
+		else {
+			throw new Error(`Unable to cast ${typeof value} to number`);
+		}
+	}
 }
 
 class Operand {
-	public readonly Value: number | boolean | Parameter | ArgumentArray | UnaryOperation | BinaryOperation;
-	public constructor(value: number | boolean | Parameter | ArgumentArray | UnaryOperation | BinaryOperation) {
+	public readonly Value: literal | Parameter | ArgumentArray | UnaryOperation | BinaryOperation;
+	public constructor(value: literal | Parameter | ArgumentArray | UnaryOperation | BinaryOperation) {
 		this.Value = value;
 	}
 }
 
 class Parameter {
 	public readonly Name: string;
-	public Value: number | boolean;
-	public constructor(name: string, value: number | boolean) {
+	public Value: literal;
+	public constructor(name: string, value: literal) {
 		this.Name = name;
 		this.Value = value;
 	}
@@ -136,34 +154,34 @@ class MathParser {
 
 	public static readonly Constants: Parameter[] = [new Parameter("pi", Math.PI), new Parameter("e", Math.E), new Parameter("false", false), new Parameter("true", true), new Parameter("infinity", Number.POSITIVE_INFINITY)];
 
-	public static readonly NegativeFunction: MathFunction = new MathFunction("negative", 1, (value: (number | boolean)[]) => { return -<number>value[0]; });
+	public static readonly NegativeFunction: MathFunction = new MathFunction("negative", 1, (value: (literal)[]) => { return -Extensions.asNumber(value[0]); });
 
 	public static readonly Functions: MathFunction[] = [
-		new MathFunction("rad", 1, (value: (number | boolean)[]) => { return <number>value[0] / 180.0 * Math.PI; }),
-		new MathFunction("deg", 1, (value: (number | boolean)[]) => { return <number>value[0] * 180.0 / Math.PI; }),
+		new MathFunction("rad", 1, (value: (literal)[]) => { return Extensions.asNumber(value[0]) / 180.0 * Math.PI; }),
+		new MathFunction("deg", 1, (value: (literal)[]) => { return Extensions.asNumber(value[0]) * 180.0 / Math.PI; }),
 
-		new MathFunction("cos", 1, (value: (number | boolean)[]) => { return Math.cos(<number>value[0]); }),
-		new MathFunction("sin", 1, (value: (number | boolean)[]) => { return Math.sin(<number>value[0]); }),
-		new MathFunction("tan", 1, (value: (number | boolean)[]) => { return Math.sin(<number>value[0]) / Math.cos(<number>value[0]); }),
-		new MathFunction("cot", 1, (value: (number | boolean)[]) => { return Math.cos(<number>value[0]) / Math.sin(<number>value[0]); }),
+		new MathFunction("cos", 1, (value: (literal)[]) => { return Math.cos(Extensions.asNumber(value[0])); }),
+		new MathFunction("sin", 1, (value: (literal)[]) => { return Math.sin(Extensions.asNumber(value[0])); }),
+		new MathFunction("tan", 1, (value: (literal)[]) => { return Math.sin(Extensions.asNumber(value[0])) / Math.cos(Extensions.asNumber(value[0])); }),
+		new MathFunction("cot", 1, (value: (literal)[]) => { return Math.cos(Extensions.asNumber(value[0])) / Math.sin(Extensions.asNumber(value[0])); }),
 
-		new MathFunction("acos", 1, (value: (number | boolean)[]) => { return Math.acos(<number>value[0]); }),
-		new MathFunction("asin", 1, (value: (number | boolean)[]) => { return Math.asin(<number>value[0]); }),
-		new MathFunction("atan", 1, (value: (number | boolean)[]) => { return Math.atan(<number>value[0]); }),
-		new MathFunction("acot", 1, (value: (number | boolean)[]) => { return Math.atan(1 / <number>value[0]); }),
+		new MathFunction("acos", 1, (value: (literal)[]) => { return Math.acos(Extensions.asNumber(value[0])); }),
+		new MathFunction("asin", 1, (value: (literal)[]) => { return Math.asin(Extensions.asNumber(value[0])); }),
+		new MathFunction("atan", 1, (value: (literal)[]) => { return Math.atan(Extensions.asNumber(value[0])); }),
+		new MathFunction("acot", 1, (value: (literal)[]) => { return Math.atan(1 / Extensions.asNumber(value[0])); }),
 
-		new MathFunction("sqrt", 1, (value: (number | boolean)[]) => { return Math.sqrt(<number>value[0]); }),
-		new MathFunction("cbrt", 1, (value: (number | boolean)[]) => { return Math.pow(<number>value[0], 1.0 / 3.0); }),
+		new MathFunction("sqrt", 1, (value: (literal)[]) => { return Math.sqrt(Extensions.asNumber(value[0])); }),
+		new MathFunction("cbrt", 1, (value: (literal)[]) => { return Math.pow(Extensions.asNumber(value[0]), 1.0 / 3.0); }),
 
-		new MathFunction("ln", 1, (value: (number | boolean)[]) => { return Math.log(<number>value[0]); }), //log(x)_e
-		new MathFunction("abs", 1, (value: (number | boolean)[]) => { return Math.abs(<number>value[0]); }),
+		new MathFunction("ln", 1, (value: (literal)[]) => { return Math.log(Extensions.asNumber(value[0])); }), //log(x)_e
+		new MathFunction("abs", 1, (value: (literal)[]) => { return Math.abs(Extensions.asNumber(value[0])); }),
 
-		new MathFunction("!", 1, (value: (number | boolean)[]) => { return !<boolean>value[0]; }),
+		new MathFunction("!", 1, (value: (literal)[]) => { return !Extensions.asBoolean(value[0]); }),
 
-		new MathFunction("rand", 2, (value: (number | boolean)[]) => { return Math.random() * (<number>value[1] - <number>value[0]) + <number>value[0]; }),
+		new MathFunction("rand", 2, (value: (literal)[]) => { return Math.random() * (Extensions.asNumber(value[1]) - Extensions.asNumber(value[0])) + Extensions.asNumber(value[0]); }),
 
-		new MathFunction("log", 2, (value: (number | boolean)[]) => { return Math.log(<number>value[0]) / Math.log(<number>value[1]) }),
-		new MathFunction("root", 2, (value: (number | boolean)[]) => { return Math.pow(<number>value[0], 1 / <number>value[1]) }),
+		new MathFunction("log", 2, (value: (literal)[]) => { return Math.log(Extensions.asNumber(value[0])) / Math.log(Extensions.asNumber(value[1])) }),
+		new MathFunction("root", 2, (value: (literal)[]) => { return Math.pow(Extensions.asNumber(value[0]), 1 / Extensions.asNumber(value[1])) }),
 	];
 
 	private static IsBasicOperator(value: string): boolean {
@@ -395,7 +413,7 @@ class MathParser {
 						}
 					}
 					else {
-						throw new Error(`Function ${func.Type} is already exists`);
+						throw new Error(`Function ${func.Type} already exists`);
 					}
 				}
 			});
@@ -404,7 +422,7 @@ class MathParser {
 				return returnValue;
 			}
 			else {
-				throw new Error(`MathParser.Functions.length == 0. Logical error`);
+				throw new Error(`Function ${operand.split(MathParser.OperandKey)[0]} wasn't found`);
 			}
 		}
 	}
@@ -492,47 +510,47 @@ class MathParser {
 		return MathParser.SplitExpression(openedBraces.expression, parameters, openedBraces.operands);
 	}
 
-	public static Evaluate(operation: BinaryOperation): number | boolean {
+	public static Evaluate(operation: BinaryOperation): literal {
 		let firstOperand = MathParser.EvaluateOperand(operation.FirstOperand);
 		let secondOperand = MathParser.EvaluateOperand(operation.SecondOperand);
 
 		switch (operation.Operator.Value) {
 			case "-":
-				return <number>firstOperand - <number>secondOperand;
+				return Extensions.asNumber(firstOperand) - Extensions.asNumber(secondOperand);
 			case "+":
-				return <number>firstOperand + <number>secondOperand;
+				return Extensions.asNumber(firstOperand) + Extensions.asNumber(secondOperand);
 			case "*":
-				return <number>firstOperand * <number>secondOperand;
+				return Extensions.asNumber(firstOperand) * Extensions.asNumber(secondOperand);
 			case "/":
-				return <number>firstOperand / <number>secondOperand;
+				return Extensions.asNumber(firstOperand) / Extensions.asNumber(secondOperand);
 			case "%":
-				return <number>firstOperand % <number>secondOperand;
+				return Extensions.asNumber(firstOperand) % Extensions.asNumber(secondOperand);
 			case "^":
-				return Math.pow(<number>firstOperand, <number>secondOperand);
+				return Math.pow(Extensions.asNumber(firstOperand), Extensions.asNumber(secondOperand));
 			case "&":
-				return <boolean>firstOperand && <boolean>secondOperand;
+				return Extensions.asBoolean(firstOperand) && Extensions.asBoolean(secondOperand);
 			case "|":
-				return <boolean>firstOperand || <boolean>secondOperand;
+				return Extensions.asBoolean(firstOperand) || Extensions.asBoolean(secondOperand);
 			case ">":
-				return <number>firstOperand > <number>secondOperand;
+				return Extensions.asNumber(firstOperand) > Extensions.asNumber(secondOperand);
 			case "<":
-				return <number>firstOperand < <number>secondOperand;
+				return Extensions.asNumber(firstOperand) < Extensions.asNumber(secondOperand);
 			case "ge":
 			case ">=":
-				return <number>firstOperand >= <number>secondOperand;
+				return Extensions.asNumber(firstOperand) >= Extensions.asNumber(secondOperand);
 			case "le":
 			case "<=":
-				return <number>firstOperand <= <number>secondOperand;
+				return Extensions.asNumber(firstOperand) <= Extensions.asNumber(secondOperand);
 			case "==":
-				return <number>firstOperand == <number>secondOperand;
+				return Extensions.asNumber(firstOperand) == Extensions.asNumber(secondOperand);
 			case "!=":
-				return <number>firstOperand != <number>secondOperand;
+				return Extensions.asNumber(firstOperand) != Extensions.asNumber(secondOperand);
 			default:
 				throw new Error(`Unknown operator: ${operation.Operator.Value}`);
 		}
 	}
 
-	public static EvaluateOperand(operand: Operand): number | boolean {
+	public static EvaluateOperand(operand: Operand): literal {
 		if (typeof operand.Value == "number" || typeof operand.Value == "boolean") {
 			return operand.Value;
 		}
@@ -540,7 +558,7 @@ class MathParser {
 			return operand.Value.Value;
 		}
 		else if (operand.Value instanceof UnaryOperation) {
-			let evaluatedArguments: (number | boolean)[] = [];
+			let evaluatedArguments: (literal)[] = [];
 			for (let index = 0; index < operand.Value.Func.ArgumentsCount; index++) {
 				evaluatedArguments.push(MathParser.EvaluateOperand(operand.Value.Arguments.Arguments[index]));
 			}
@@ -578,7 +596,7 @@ class UnitTests {
 		UnitTests.TestCases.push(testCase);
 	}
 
-	public static AreEqual(expression: string, expected: number | boolean): void {
+	public static AreEqual(expression: string, expected: literal): void {
 		let compared = UnitTests.EvaluateHelper(expression);
 		let passed: boolean;
 		if (typeof compared == "number" && typeof expected == "number") {
@@ -589,7 +607,7 @@ class UnitTests {
 		}
 		UnitTests.DisplayResult(compared.toString(), expected.toString(), passed, `"are equal"`);
 	}
-	public static AreUnequal(expression: string, expected: number | boolean): void {
+	public static AreUnequal(expression: string, expected: literal): void {
 		let compared = UnitTests.EvaluateHelper(expression);
 		let passed: boolean;
 		if (typeof compared == "number" && typeof expected == "number") {
@@ -612,7 +630,7 @@ class UnitTests {
 		}
 	}
 
-	public static EvaluateHelper(expression: string): number | boolean {
+	public static EvaluateHelper(expression: string): literal {
 		let evaluated = MathParser.EvaluateOperand(MathParser.Parse(expression));
 		return evaluated;
 	}
@@ -673,6 +691,18 @@ UnitTests.DeclareTestCase(() => {
 });
 UnitTests.DeclareTestCase(() => {
 	UnitTests.ThrowError("sdgphjsdioghiosdnhiosd");
+});
+UnitTests.DeclareTestCase(() => {
+	UnitTests.AreEqual("3+-4", -1);
+});
+UnitTests.DeclareTestCase(() => {
+	UnitTests.AreEqual("-2+3", 1);
+});
+UnitTests.DeclareTestCase(() => {
+	UnitTests.ThrowError("1&3");
+});
+UnitTests.DeclareTestCase(() => {
+	UnitTests.ThrowError("!(1)");
 });
 
 //UnitTests.RunTests()

@@ -21,7 +21,6 @@
         "noUnusedParameters": true,
         "allowUnreachableCode": false,
         "allowUnusedLabels": false,
-        //"noUncheckedIndexedAccess": true,
         "diagnostics": false,
         "extendedDiagnostics": false,
         "incremental": true,

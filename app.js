@@ -38,6 +38,22 @@ class Extensions {
     static replace(value, start, end, replaceValue) {
         return value.substring(0, start) + replaceValue + value.substr(end);
     }
+    static asBoolean(value) {
+        if (typeof value == "boolean") {
+            return value;
+        }
+        else {
+            throw new Error(`Unable to cast ${typeof value} to boolean`);
+        }
+    }
+    static asNumber(value) {
+        if (typeof value == "number") {
+            return value;
+        }
+        else {
+            throw new Error(`Unable to cast ${typeof value} to number`);
+        }
+    }
 }
 class Operand {
     constructor(value) {
@@ -272,7 +288,7 @@ class MathParser {
                         }
                     }
                     else {
-                        throw new Error(`Function ${func.Type} is already exists`);
+                        throw new Error(`Function ${func.Type} already exists`);
                     }
                 }
             });
@@ -280,7 +296,7 @@ class MathParser {
                 return returnValue;
             }
             else {
-                throw new Error(`MathParser.Functions.length == 0. Logical error`);
+                throw new Error(`Function ${operand.split(MathParser.OperandKey)[0]} wasn't found`);
             }
         }
     }
@@ -354,35 +370,35 @@ class MathParser {
         let secondOperand = MathParser.EvaluateOperand(operation.SecondOperand);
         switch (operation.Operator.Value) {
             case "-":
-                return firstOperand - secondOperand;
+                return Extensions.asNumber(firstOperand) - Extensions.asNumber(secondOperand);
             case "+":
-                return firstOperand + secondOperand;
+                return Extensions.asNumber(firstOperand) + Extensions.asNumber(secondOperand);
             case "*":
-                return firstOperand * secondOperand;
+                return Extensions.asNumber(firstOperand) * Extensions.asNumber(secondOperand);
             case "/":
-                return firstOperand / secondOperand;
+                return Extensions.asNumber(firstOperand) / Extensions.asNumber(secondOperand);
             case "%":
-                return firstOperand % secondOperand;
+                return Extensions.asNumber(firstOperand) % Extensions.asNumber(secondOperand);
             case "^":
-                return Math.pow(firstOperand, secondOperand);
+                return Math.pow(Extensions.asNumber(firstOperand), Extensions.asNumber(secondOperand));
             case "&":
-                return firstOperand && secondOperand;
+                return Extensions.asBoolean(firstOperand) && Extensions.asBoolean(secondOperand);
             case "|":
-                return firstOperand || secondOperand;
+                return Extensions.asBoolean(firstOperand) || Extensions.asBoolean(secondOperand);
             case ">":
-                return firstOperand > secondOperand;
+                return Extensions.asNumber(firstOperand) > Extensions.asNumber(secondOperand);
             case "<":
-                return firstOperand < secondOperand;
+                return Extensions.asNumber(firstOperand) < Extensions.asNumber(secondOperand);
             case "ge":
             case ">=":
-                return firstOperand >= secondOperand;
+                return Extensions.asNumber(firstOperand) >= Extensions.asNumber(secondOperand);
             case "le":
             case "<=":
-                return firstOperand <= secondOperand;
+                return Extensions.asNumber(firstOperand) <= Extensions.asNumber(secondOperand);
             case "==":
-                return firstOperand == secondOperand;
+                return Extensions.asNumber(firstOperand) == Extensions.asNumber(secondOperand);
             case "!=":
-                return firstOperand != secondOperand;
+                return Extensions.asNumber(firstOperand) != Extensions.asNumber(secondOperand);
             default:
                 throw new Error(`Unknown operator: ${operation.Operator.Value}`);
         }
@@ -430,26 +446,26 @@ MathParser.Operators = [
 MathParser.OperandKey = "#";
 MathParser.Enumerator = ";";
 MathParser.Constants = [new Parameter("pi", Math.PI), new Parameter("e", Math.E), new Parameter("false", false), new Parameter("true", true), new Parameter("infinity", Number.POSITIVE_INFINITY)];
-MathParser.NegativeFunction = new MathFunction("negative", 1, (value) => { return -value[0]; });
+MathParser.NegativeFunction = new MathFunction("negative", 1, (value) => { return -Extensions.asNumber(value[0]); });
 MathParser.Functions = [
-    new MathFunction("rad", 1, (value) => { return value[0] / 180.0 * Math.PI; }),
-    new MathFunction("deg", 1, (value) => { return value[0] * 180.0 / Math.PI; }),
-    new MathFunction("cos", 1, (value) => { return Math.cos(value[0]); }),
-    new MathFunction("sin", 1, (value) => { return Math.sin(value[0]); }),
-    new MathFunction("tan", 1, (value) => { return Math.sin(value[0]) / Math.cos(value[0]); }),
-    new MathFunction("cot", 1, (value) => { return Math.cos(value[0]) / Math.sin(value[0]); }),
-    new MathFunction("acos", 1, (value) => { return Math.acos(value[0]); }),
-    new MathFunction("asin", 1, (value) => { return Math.asin(value[0]); }),
-    new MathFunction("atan", 1, (value) => { return Math.atan(value[0]); }),
-    new MathFunction("acot", 1, (value) => { return Math.atan(1 / value[0]); }),
-    new MathFunction("sqrt", 1, (value) => { return Math.sqrt(value[0]); }),
-    new MathFunction("cbrt", 1, (value) => { return Math.pow(value[0], 1.0 / 3.0); }),
-    new MathFunction("ln", 1, (value) => { return Math.log(value[0]); }),
-    new MathFunction("abs", 1, (value) => { return Math.abs(value[0]); }),
-    new MathFunction("!", 1, (value) => { return !value[0]; }),
-    new MathFunction("rand", 2, (value) => { return Math.random() * (value[1] - value[0]) + value[0]; }),
-    new MathFunction("log", 2, (value) => { return Math.log(value[0]) / Math.log(value[1]); }),
-    new MathFunction("root", 2, (value) => { return Math.pow(value[0], 1 / value[1]); }),
+    new MathFunction("rad", 1, (value) => { return Extensions.asNumber(value[0]) / 180.0 * Math.PI; }),
+    new MathFunction("deg", 1, (value) => { return Extensions.asNumber(value[0]) * 180.0 / Math.PI; }),
+    new MathFunction("cos", 1, (value) => { return Math.cos(Extensions.asNumber(value[0])); }),
+    new MathFunction("sin", 1, (value) => { return Math.sin(Extensions.asNumber(value[0])); }),
+    new MathFunction("tan", 1, (value) => { return Math.sin(Extensions.asNumber(value[0])) / Math.cos(Extensions.asNumber(value[0])); }),
+    new MathFunction("cot", 1, (value) => { return Math.cos(Extensions.asNumber(value[0])) / Math.sin(Extensions.asNumber(value[0])); }),
+    new MathFunction("acos", 1, (value) => { return Math.acos(Extensions.asNumber(value[0])); }),
+    new MathFunction("asin", 1, (value) => { return Math.asin(Extensions.asNumber(value[0])); }),
+    new MathFunction("atan", 1, (value) => { return Math.atan(Extensions.asNumber(value[0])); }),
+    new MathFunction("acot", 1, (value) => { return Math.atan(1 / Extensions.asNumber(value[0])); }),
+    new MathFunction("sqrt", 1, (value) => { return Math.sqrt(Extensions.asNumber(value[0])); }),
+    new MathFunction("cbrt", 1, (value) => { return Math.pow(Extensions.asNumber(value[0]), 1.0 / 3.0); }),
+    new MathFunction("ln", 1, (value) => { return Math.log(Extensions.asNumber(value[0])); }),
+    new MathFunction("abs", 1, (value) => { return Math.abs(Extensions.asNumber(value[0])); }),
+    new MathFunction("!", 1, (value) => { return !Extensions.asBoolean(value[0]); }),
+    new MathFunction("rand", 2, (value) => { return Math.random() * (Extensions.asNumber(value[1]) - Extensions.asNumber(value[0])) + Extensions.asNumber(value[0]); }),
+    new MathFunction("log", 2, (value) => { return Math.log(Extensions.asNumber(value[0])) / Math.log(Extensions.asNumber(value[1])); }),
+    new MathFunction("root", 2, (value) => { return Math.pow(Extensions.asNumber(value[0]), 1 / Extensions.asNumber(value[1])); }),
 ];
 class UnitTests {
     static DisplayResult(received, expected, passed, type) {
@@ -553,5 +569,17 @@ UnitTests.DeclareTestCase(() => {
 });
 UnitTests.DeclareTestCase(() => {
     UnitTests.ThrowError("sdgphjsdioghiosdnhiosd");
+});
+UnitTests.DeclareTestCase(() => {
+    UnitTests.AreEqual("3+-4", -1);
+});
+UnitTests.DeclareTestCase(() => {
+    UnitTests.AreEqual("-2+3", 1);
+});
+UnitTests.DeclareTestCase(() => {
+    UnitTests.ThrowError("1&3");
+});
+UnitTests.DeclareTestCase(() => {
+    UnitTests.ThrowError("!(1)");
 });
 //# sourceMappingURL=app.js.map
