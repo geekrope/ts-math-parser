@@ -165,10 +165,20 @@ class MathParser {
 		new MathFunction("tan", 1, (value: (literal)[]) => { return Math.sin(Extensions.asNumber(value[0])) / Math.cos(Extensions.asNumber(value[0])); }),
 		new MathFunction("cot", 1, (value: (literal)[]) => { return Math.cos(Extensions.asNumber(value[0])) / Math.sin(Extensions.asNumber(value[0])); }),
 
+		new MathFunction("cosh", 1, (value: (literal)[]) => { return Math.cosh(Extensions.asNumber(value[0])); }),
+		new MathFunction("sinh", 1, (value: (literal)[]) => { return Math.sinh(Extensions.asNumber(value[0])); }),
+		new MathFunction("tanh", 1, (value: (literal)[]) => { return Math.sinh(Extensions.asNumber(value[0])) / Math.cosh(Extensions.asNumber(value[0])); }),
+		new MathFunction("coth", 1, (value: (literal)[]) => { return Math.cosh(Extensions.asNumber(value[0])) / Math.sinh(Extensions.asNumber(value[0])); }),
+
 		new MathFunction("acos", 1, (value: (literal)[]) => { return Math.acos(Extensions.asNumber(value[0])); }),
 		new MathFunction("asin", 1, (value: (literal)[]) => { return Math.asin(Extensions.asNumber(value[0])); }),
 		new MathFunction("atan", 1, (value: (literal)[]) => { return Math.atan(Extensions.asNumber(value[0])); }),
 		new MathFunction("acot", 1, (value: (literal)[]) => { return Math.atan(1 / Extensions.asNumber(value[0])); }),
+
+		new MathFunction("acosh", 1, (value: (literal)[]) => { return Math.acosh(Extensions.asNumber(value[0])); }),
+		new MathFunction("asinh", 1, (value: (literal)[]) => { return Math.asinh(Extensions.asNumber(value[0])); }),
+		new MathFunction("atanh", 1, (value: (literal)[]) => { return Math.atanh(Extensions.asNumber(value[0])) }),
+		new MathFunction("acoth", 1, (value: (literal)[]) => { return Math.atanh(1 / Extensions.asNumber(value[0])) }),
 
 		new MathFunction("sqrt", 1, (value: (literal)[]) => { return Math.sqrt(Extensions.asNumber(value[0])); }),
 		new MathFunction("cbrt", 1, (value: (literal)[]) => { return Math.pow(Extensions.asNumber(value[0]), 1.0 / 3.0); }),
@@ -176,12 +186,21 @@ class MathParser {
 		new MathFunction("ln", 1, (value: (literal)[]) => { return Math.log(Extensions.asNumber(value[0])); }), //log(x)_e
 		new MathFunction("abs", 1, (value: (literal)[]) => { return Math.abs(Extensions.asNumber(value[0])); }),
 
+		new MathFunction("sign", 1, (value: (literal)[]) => { return Math.sign(Extensions.asNumber(value[0])); }),
+		new MathFunction("exp", 1, (value: (literal)[]) => { return Math.exp(Extensions.asNumber(value[0])); }),
+		new MathFunction("floor", 1, (value: (literal)[]) => { return Math.floor(Extensions.asNumber(value[0])); }),
+		new MathFunction("ceil", 1, (value: (literal)[]) => { return Math.ceil(Extensions.asNumber(value[0])); }),
+		new MathFunction("round", 1, (value: (literal)[]) => { return Math.round(Extensions.asNumber(value[0])); }),
+
 		new MathFunction("!", 1, (value: (literal)[]) => { return !Extensions.asBoolean(value[0]); }),
+
+		new MathFunction("fact", 1, (value: (literal)[]) => { let result = 1; for (let i = 1; i < Extensions.asNumber(value[0]); i++) { result *= i } return result; }),
+		new MathFunction("f'", 1, () => { throw new Error("Not implemented") }),
 
 		new MathFunction("rand", 2, (value: (literal)[]) => { return Math.random() * (Extensions.asNumber(value[1]) - Extensions.asNumber(value[0])) + Extensions.asNumber(value[0]); }),
 
 		new MathFunction("log", 2, (value: (literal)[]) => { return Math.log(Extensions.asNumber(value[0])) / Math.log(Extensions.asNumber(value[1])) }),
-		new MathFunction("root", 2, (value: (literal)[]) => { return Math.pow(Extensions.asNumber(value[0]), 1 / Extensions.asNumber(value[1])) }),
+		new MathFunction("root", 2, (value: (literal)[]) => { return Math.pow(Extensions.asNumber(value[0]), 1 / Extensions.asNumber(value[1])) })
 	];
 
 	private static IsBasicOperator(value: string): boolean {
