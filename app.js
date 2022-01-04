@@ -261,32 +261,40 @@ class MathParser {
         }
         else {
             let returnValue;
+            let suitableFunctions = [];
             MathParser.Functions.forEach((func) => {
                 if (func.Type.length < operand.length && operand.substr(0, func.Type.length) == func.Type) {
-                    let innerExpression = operand.substr(func.Type.length, operand.length - func.Type.length);
-                    let value = MathParser.ParseOperand(innerExpression, parameters, addedOperands);
-                    if (value.Value instanceof ArgumentArray) {
-                        if (value.Value.Length != func.ArgumentsCount) {
-                            throw new Error(`Function doesn't take ${value.Value.Length} arguments`);
-                        }
-                        else {
-                            returnValue = new Operand(new UnaryOperation(value.Value, func));
-                        }
-                    }
-                    else if (1 != func.ArgumentsCount) {
-                        throw new Error("Function doesn't take 1 argument");
-                    }
-                    else {
-                        returnValue = new Operand(new UnaryOperation(new ArgumentArray([value]), func));
+                    suitableFunctions.push(func);
+                }
+            });
+            if (suitableFunctions.length == 0) {
+                throw new Error("Function wasn't found");
+            }
+            let mostSuitableFunction = suitableFunctions[0];
+            suitableFunctions.forEach((func) => {
+                if (mostSuitableFunction) {
+                    if (func.Type.length > mostSuitableFunction.Type.length) {
+                        mostSuitableFunction = func;
                     }
                 }
             });
-            if (returnValue !== undefined) {
-                return returnValue;
+            let innerExpression = operand.substr(mostSuitableFunction.Type.length, operand.length - mostSuitableFunction.Type.length);
+            let value = MathParser.ParseOperand(innerExpression, parameters, addedOperands);
+            if (value.Value instanceof ArgumentArray) {
+                if (value.Value.Length != mostSuitableFunction.ArgumentsCount) {
+                    throw new Error(`Function doesn't take ${value.Value.Length} arguments`);
+                }
+                else {
+                    returnValue = new Operand(new UnaryOperation(value.Value, mostSuitableFunction));
+                }
+            }
+            else if (1 != mostSuitableFunction.ArgumentsCount) {
+                throw new Error("Function doesn't take 1 argument");
             }
             else {
-                throw new Error(`Function ${operand.split(MathParser.OperandKey)[0]} wasn't found`);
+                returnValue = new Operand(new UnaryOperation(new ArgumentArray([value]), mostSuitableFunction));
             }
+            return returnValue;
         }
     }
     static GetParameters(parameters) {
@@ -415,6 +423,192 @@ class MathParser {
             throw new Error("Unknown function");
         }
     }
+    static ArgumentsToLatex(args) {
+        var innerFunction = "";
+        for (let index = 0; index < args.Length; index++) {
+            innerFunction += MathParser.OperandToLatexFormula(args.Arguments[index]);
+            if (index < args.Length - 1) {
+                innerFunction += Enumerator;
+            }
+        }
+        return innerFunction;
+    }
+    static OperandToLatexFormula(operand) {
+        let output = "";
+        if (typeof operand.Value == "number" || typeof operand.Value == "boolean") {
+            output += operand.Value.toString();
+        }
+        else if (operand.Value instanceof Parameter) {
+            switch (operand.Value.Name) {
+                case "pi":
+                    output += "\pi";
+                    break;
+                case "infinity":
+                    output += "\infty";
+                    break;
+                default:
+                    output += operand.Value.Name;
+                    break;
+            }
+        }
+        else if (operand.Value instanceof UnaryOperation) {
+            var innerFunction = MathParser.ArgumentsToLatex(operand.Value.Arguments);
+            switch (operand.Value.Func.Type) {
+                case "negative":
+                    let argumentValue = operand.Value.Arguments.Arguments[0].Value;
+                    if (typeof argumentValue == "number" || typeof operand.Value == "boolean" || argumentValue instanceof Parameter || argumentValue instanceof UnaryOperation) {
+                        output += "-" + innerFunction + "";
+                    }
+                    else {
+                        output += "-(" + innerFunction + ")";
+                    }
+                    break;
+                case "sqrt":
+                    output += "\\sqrt{" + innerFunction + "}";
+                    break;
+                case "cbrt":
+                    output += "\\sqrt[3]{" + innerFunction + "}";
+                    break;
+                case "rad":
+                    output += innerFunction;
+                    break;
+                case "deg":
+                    output += "{" + innerFunction + "}" + "^{\\circ}";
+                    break;
+                case "ln":
+                    output += "\\log_e{(" + innerFunction + ")}";
+                    break;
+                case "log":
+                    output += "\\log_{" + MathParser.OperandToLatexFormula(operand.Value.Arguments.Arguments[0]) + "}{(" + MathParser.OperandToLatexFormula(operand.Value.Arguments.Arguments[1]) + ")}";
+                    break;
+                case "rand":
+                    output += "rand(" + innerFunction + ")";
+                    break;
+                case "root":
+                    output += "\\sqrt[" + MathParser.OperandToLatexFormula(operand.Value.Arguments.Arguments[0]) + "]{" + MathParser.OperandToLatexFormula(operand.Value.Arguments.Arguments[1]) + "}";
+                    break;
+                case "!":
+                    output += "not \\;(" + innerFunction + ")";
+                    break;
+                case "acoss":
+                    output += "\\arccos{(" + innerFunction + ")}";
+                    break;
+                case "asin":
+                    output += "\\arcsin{(" + innerFunction + ")}";
+                    break;
+                case "atan":
+                    output += "\\arctan{(" + innerFunction + ")}";
+                    break;
+                case "acot":
+                    output += "\\arctan{(\\frac{1}{" + innerFunction + "})}";
+                    break;
+                case "abs":
+                    output += "|" + innerFunction + "|";
+                    break;
+                default:
+                    output += "\\" + operand.Value.Func.Type + "{" + innerFunction + "}";
+                    break;
+            }
+        }
+        else if (operand.Value instanceof BinaryOperation) {
+            output += MathParser.BinaryOperationToLatexFormula(operand.Value);
+        }
+        else {
+            return "";
+        }
+        return output;
+    }
+    static BinaryOperationToLatexFormula(operation) {
+        let output = "";
+        let firstOperand = MathParser.OperandToLatexFormula(operation.FirstOperand);
+        let secondOperand = MathParser.OperandToLatexFormula(operation.SecondOperand);
+        if (operation.FirstOperand.Value instanceof BinaryOperation) {
+            var firstOperation = operation.FirstOperand.Value;
+            if ((firstOperation.Operator.OperatorLevel < operation.Operator.OperatorLevel || operation.Operator.Value == "-") && operation.Operator.Value != "/") {
+                firstOperand = "(" + firstOperand + ")";
+            }
+        }
+        if (operation.SecondOperand.Value instanceof BinaryOperation) {
+            var secondOperation = operation.SecondOperand.Value;
+            if ((secondOperation.Operator.OperatorLevel < operation.Operator.OperatorLevel || operation.Operator.Value == "-") && operation.Operator.Value != "^" && operation.Operator.Value != "/") {
+                secondOperand = "(" + secondOperand + ")";
+            }
+        }
+        switch (operation.Operator.Value) {
+            case "*":
+                output += `${firstOperand} \\cdot ${secondOperand}`;
+                break;
+            case "/":
+                output += "\\frac{" + firstOperand + "}{" + secondOperand + "}";
+                break;
+            case ">=":
+                output += firstOperand + "\\geq" + secondOperand;
+                break;
+            case "<=":
+                output += firstOperand + "\\leq" + secondOperand;
+                break;
+            case "==":
+                output += firstOperand + "\\equiv" + secondOperand;
+                break;
+            case "!=":
+                output += firstOperand + "\\neq" + secondOperand;
+                break;
+            case "&":
+                output += firstOperand + "\\; and \\;" + secondOperand;
+                break;
+            case "|":
+                output += firstOperand + "\\; or \\;" + secondOperand;
+                break;
+            case "^":
+                let powerAfrer = () => {
+                    output += "{" + firstOperand + "}^{" + secondOperand + "}";
+                };
+                let powerBefore = () => {
+                    var funct = operation.FirstOperand.Value;
+                    output += `\\${funct.Func.Type}^${MathParser.OperandToLatexFormula(operation.SecondOperand)}` + "{(" + MathParser.ArgumentsToLatex(funct.Arguments) + ")}";
+                };
+                if (operation.FirstOperand.Value instanceof UnaryOperation) {
+                    var func = (operation.FirstOperand.Value).Func;
+                    switch (func.Type) {
+                        case "cos":
+                            powerBefore();
+                            break;
+                        case "sin":
+                            powerBefore();
+                            break;
+                        case "tan":
+                            powerBefore();
+                            break;
+                        case "cot":
+                            powerBefore();
+                            break;
+                        case "acos":
+                            powerBefore();
+                            break;
+                        case "asin":
+                            powerBefore();
+                            break;
+                        case "atan":
+                            powerBefore();
+                            break;
+                        case "acot":
+                            powerBefore();
+                            break;
+                        default:
+                            powerAfrer();
+                            break;
+                    }
+                }
+                else {
+                    powerAfrer();
+                }
+                break;
+            default:
+                output += `${firstOperand} ${operation.Operator.Value} ${secondOperand}`;
+                break;
+        }
+        return output;
+    }
 }
 MathParser.Operators = [
     new Operator("+", OperatorPrecedence.First),
@@ -476,10 +670,10 @@ MathParser.Functions = [
 class UnitTests {
     static DisplayResult(received, expected, passed, type) {
         if (passed) {
-            console.log(`%c Test ${type} passed. Received: ${received}, expected: ${expected}`, 'background: #0a0; color: #fff');
+            console.log(`%c Test ${type} passed.Received: ${received}, expected: ${expected} `, 'background: #0a0; color: #fff');
         }
         else {
-            console.log(`%c Test ${type} failed. Received: ${received}, expected: ${expected}`, 'background: #a00; color: #fff');
+            console.log(`%c Test ${type} failed.Received: ${received}, expected: ${expected} `, 'background: #a00; color: #fff');
         }
     }
     static DeclareTestCase(testCase) {
@@ -533,8 +727,10 @@ UnitTests.Delta = 0.01;
 function Evaluate() {
     let input = document.getElementById('inp');
     let result = document.getElementById('res');
-    if (input && result) {
+    let expression = document.getElementById('expression');
+    if (input && result && expression) {
         result.innerHTML = UnitTests.EvaluateHelper(input.value).toString();
+        expression.innerHTML = "$" + MathParser.OperandToLatexFormula(MathParser.Parse(input.value)) + "$";
     }
 }
 UnitTests.DeclareTestCase(() => {
@@ -596,5 +792,14 @@ UnitTests.DeclareTestCase(() => {
 });
 UnitTests.DeclareTestCase(() => {
     UnitTests.AreEqual("root(root(2;cossinlnraddeg(pi/2));log(pi;e))", 1.95);
+});
+UnitTests.DeclareTestCase(() => {
+    UnitTests.AreEqual("sinh(10)", Math.sinh(10));
+});
+UnitTests.DeclareTestCase(() => {
+    UnitTests.AreEqual("(e^10-e^(-10))/2", Math.sinh(10));
+});
+UnitTests.DeclareTestCase(() => {
+    UnitTests.ThrowError("sinhh(10)");
 });
 //# sourceMappingURL=app.js.map
