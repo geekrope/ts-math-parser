@@ -599,7 +599,7 @@ class MathParser {
 		for (let index = 0; index < args.Length; index++) {
 			innerFunction += MathParser.OperandToLatexFormula(args.Arguments[index]);
 			if (index < args.Length - 1) {
-				innerFunction += Enumerator;
+				innerFunction += MathParser.Enumerator;
 			}
 		}
 		return innerFunction;
@@ -664,7 +664,7 @@ class MathParser {
 				case "!":
 					output += "not \\;(" + innerFunction + ")";
 					break;
-				case "acoss":
+				case "acos":
 					output += "\\arccos{(" + innerFunction + ")}";
 					break;
 				case "asin":
@@ -676,8 +676,41 @@ class MathParser {
 				case "acot":
 					output += "\\arctan{(\\frac{1}{" + innerFunction + "})}";
 					break;
+				case "acosh":
+					output += "\\cosh^{-1}{(" + innerFunction + ")}";
+					break;
+				case "asinh":
+					output += "\\sinh^{-1}1{(" + innerFunction + ")}";
+					break;
+				case "atanh":
+					output += "\\tanh^{-1}{(" + innerFunction + ")}";
+					break;
+				case "acoth":
+					output += "\\tanh^{-1}{(\\frac{1}{" + innerFunction + "})}";
+					break;
+				case "exp":
+					output += "e^{" + innerFunction + "}";
+					break;
+				case "floor":
+					output += "⌊" + innerFunction + "⌋";
+					break;
+				case "round":
+					output += "round(" + innerFunction + ")";
+					break;
+				case "ceil":
+					output += "⌈" + innerFunction + "⌉";
+					break;
 				case "abs":
 					output += "|" + innerFunction + "|";
+					break;
+				case "f'":
+					output += "\\frac{d}{dx}(" + innerFunction + ")";
+					break;
+				case "fact":
+					output += innerFunction + "!";
+					break;
+				case "sign":
+					output += "sgn(" + innerFunction + ")";
 					break;
 				default:
 					output += "\\" + operand.Value.Func.Type + "{" + innerFunction + "}";
