@@ -479,13 +479,13 @@ class MathParser {
                     output += "\\log_e{(" + innerFunction + ")}";
                     break;
                 case "log":
-                    output += "\\log_{" + MathParser.OperandToLatexFormula(operand.Value.Arguments.Arguments[0]) + "}{(" + MathParser.OperandToLatexFormula(operand.Value.Arguments.Arguments[1]) + ")}";
+                    output += "\\log_{" + MathParser.OperandToLatexFormula(operand.Value.Arguments.Arguments[1]) + "}{(" + MathParser.OperandToLatexFormula(operand.Value.Arguments.Arguments[0]) + ")}";
                     break;
                 case "rand":
                     output += "rand(" + innerFunction + ")";
                     break;
                 case "root":
-                    output += "\\sqrt[" + MathParser.OperandToLatexFormula(operand.Value.Arguments.Arguments[0]) + "]{" + MathParser.OperandToLatexFormula(operand.Value.Arguments.Arguments[1]) + "}";
+                    output += "\\sqrt[" + MathParser.OperandToLatexFormula(operand.Value.Arguments.Arguments[1]) + "]{" + MathParser.OperandToLatexFormula(operand.Value.Arguments.Arguments[0]) + "}";
                     break;
                 case "!":
                     output += "not \\;(" + innerFunction + ")";
