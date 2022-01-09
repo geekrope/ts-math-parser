@@ -268,7 +268,12 @@ class MathParser {
                 }
             });
             if (suitableFunctions.length == 0) {
-                throw new Error("Function wasn't found");
+                if (!operand.includes(MathParser.OperandKey)) {
+                    return new Parameter(operand, 0);
+                }
+                else {
+                    throw new Error("Function wasn't found");
+                }
             }
             let mostSuitableFunction = suitableFunctions[0];
             suitableFunctions.forEach((func) => {
@@ -721,7 +726,7 @@ class UnitTests {
         else {
             passed = compared == expected;
         }
-        UnitTests.DisplayResult(compared.toString(), expected.toString(), passed, `"are equal"`);
+        UnitTests.DisplayResult(compared.toString(), expected.toString(), passed, `"${expression}"`);
     }
     static AreUnequal(expression, expected) {
         let compared = UnitTests.EvaluateHelper(expression);
@@ -732,18 +737,19 @@ class UnitTests {
         else {
             passed = compared != expected;
         }
-        UnitTests.DisplayResult(compared.toString(), expected.toString(), passed, `"are unequal"`);
+        UnitTests.DisplayResult(compared.toString(), expected.toString(), passed, `"${expression}"`);
     }
     static ThrowError(expression) {
         try {
             let result = UnitTests.EvaluateHelper(expression);
-            UnitTests.DisplayResult(result.toString(), "Error", false, `"throw exception"`);
-            return false;
+            UnitTests.DisplayResult(result.toString(), "Error", false, `"${expression}"`);
         }
         catch {
-            UnitTests.DisplayResult("Error", "Error", true, `"throw exception"`);
-            return true;
+            UnitTests.DisplayResult("Error", "Error", true, `"${expression}"`);
         }
+    }
+    static IsTrue(expression) {
+        UnitTests.DisplayResult(expression ? "true" : "false", "true", expression, `"is true"`);
     }
     static EvaluateHelper(expression) {
         let evaluated = MathParser.EvaluateOperand(MathParser.Parse(expression));
@@ -803,7 +809,13 @@ UnitTests.DeclareTestCase(() => {
     UnitTests.AreUnequal("2+2", 5);
 });
 UnitTests.DeclareTestCase(() => {
-    UnitTests.ThrowError("sdgphjsdioghiosdnhiosd");
+    const expression = "sdgphjsdioghiosdnhiosd";
+    const operand = MathParser.Parse(expression);
+    UnitTests.IsTrue(operand instanceof Parameter);
+    UnitTests.IsTrue(operand.Name == expression);
+});
+UnitTests.DeclareTestCase(() => {
+    UnitTests.ThrowError("sdgphjsdioghiosdnhiosd(0)");
 });
 UnitTests.DeclareTestCase(() => {
     UnitTests.AreEqual("3+-4", -1);
