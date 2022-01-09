@@ -498,7 +498,7 @@ class MathParser
 			{
 				if (!operand.includes(MathParser.OperandKey)) // if expression doesn't contain operand key we consider it as parameter
 				{
-					return new Parameter(operand, 0);
+					return new Operand(new Parameter(operand, 0));
 				}
 				else
 				{
@@ -1130,8 +1130,8 @@ UnitTests.DeclareTestCase(() =>
 {
 	const expression = "sdgphjsdioghiosdnhiosd";
 	const operand = MathParser.Parse(expression);
-	UnitTests.IsTrue(operand instanceof Parameter);
-	UnitTests.IsTrue((<Parameter>operand).Name == expression);
+	UnitTests.IsTrue((operand.Value) instanceof Parameter);
+	UnitTests.IsTrue((<Parameter>(operand.Value)).Name == expression);
 });
 UnitTests.DeclareTestCase(() =>
 {

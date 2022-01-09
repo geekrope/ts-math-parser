@@ -269,7 +269,7 @@ class MathParser {
             });
             if (suitableFunctions.length == 0) {
                 if (!operand.includes(MathParser.OperandKey)) {
-                    return new Parameter(operand, 0);
+                    return new Operand(new Parameter(operand, 0));
                 }
                 else {
                     throw new Error("Function wasn't found");
@@ -811,8 +811,8 @@ UnitTests.DeclareTestCase(() => {
 UnitTests.DeclareTestCase(() => {
     const expression = "sdgphjsdioghiosdnhiosd";
     const operand = MathParser.Parse(expression);
-    UnitTests.IsTrue(operand instanceof Parameter);
-    UnitTests.IsTrue(operand.Name == expression);
+    UnitTests.IsTrue((operand.Value) instanceof Parameter);
+    UnitTests.IsTrue((operand.Value).Name == expression);
 });
 UnitTests.DeclareTestCase(() => {
     UnitTests.ThrowError("sdgphjsdioghiosdnhiosd(0)");
