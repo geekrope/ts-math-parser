@@ -159,6 +159,319 @@ class MathFunction
 	}
 }
 
+interface ExpressionVisitor
+{
+	LiteralToString(literal: literal): string;
+	ParameterToString(parameter: Parameter): string;
+	ArgumentsToString(array: ArgumentArray): string;
+	UnaryOperationToString(parameter: UnaryOperation): string;
+	BinaryOperationToString(parameter: BinaryOperation, firstOperand: string, secondOperand: string): string;
+}
+
+class LatexExpressionVisitor implements ExpressionVisitor
+{
+	public LiteralToString(operand: literal): string
+	{
+		return operand.toString();
+	}
+	public ParameterToString(operand: Parameter): string
+	{
+		switch (operand.Name)
+		{
+			case "pi":
+				return "\pi";
+			case "infinity":
+				return "\infty";
+			default:
+				return operand.Name;
+		}
+	}
+	public ArgumentsToString(args: ArgumentArray): string
+	{
+		var innerFunction = "";
+		for (let index = 0; index < args.Length; index++)
+		{
+			innerFunction += MathParser.OperandToText(args.Arguments[index], this);
+			if (index < args.Length - 1)
+			{
+				innerFunction += MathParser.Enumerator;
+			}
+		}
+		return innerFunction;
+	}
+	public UnaryOperationToString(operand: UnaryOperation): string
+	{
+		var innerFunction = this.ArgumentsToString(operand.Arguments);
+
+		switch (operand.Func.Type)
+		{
+			case "negative":
+				let argumentValue = operand.Arguments.Arguments[0].Value;
+				if (typeof argumentValue == "number" || typeof argumentValue == "boolean" || argumentValue instanceof Parameter || argumentValue instanceof UnaryOperation)
+				{
+					return "-" + innerFunction + "";
+				}
+				else
+				{
+					return "-(" + innerFunction + ")";
+				}
+			case "sqrt":
+				return "\\sqrt{" + innerFunction + "}";
+			case "cbrt":
+				return "\\sqrt[3]{" + innerFunction + "}";
+			case "rad":
+				return innerFunction;
+			case "deg":
+				return "{" + innerFunction + "}" + "^{\\circ}";
+			case "ln":
+				return "\\log_e{(" + innerFunction + ")}";
+			case "log":
+				return "\\log_{" + MathParser.OperandToText(operand.Arguments.Arguments[1], this) + "}{(" + MathParser.OperandToText(operand.Arguments.Arguments[0], this) + ")}";
+			case "rand":
+				return "rand(" + innerFunction + ")";
+			case "root":
+				return "\\sqrt[" + MathParser.OperandToText(operand.Arguments.Arguments[1], this) + "]{" + MathParser.OperandToText(operand.Arguments.Arguments[0], this) + "}";
+			case "!":
+				return "not \\;(" + innerFunction + ")";
+			case "acos":
+				return "\\arccos{(" + innerFunction + ")}";
+			case "asin":
+				return "\\arcsin{(" + innerFunction + ")}";
+			case "atan":
+				return "\\arctan{(" + innerFunction + ")}";
+			case "acot":
+				return "\\arctan{(\\frac{1}{" + innerFunction + "})}";
+			case "acosh":
+				return "\\cosh^{-1}{(" + innerFunction + ")}";
+			case "asinh":
+				return "\\sinh^{-1}1{(" + innerFunction + ")}";
+			case "atanh":
+				return "\\tanh^{-1}{(" + innerFunction + ")}";
+			case "acoth":
+				return "\\tanh^{-1}{(\\frac{1}{" + innerFunction + "})}";
+			case "exp":
+				return "e^{" + innerFunction + "}";
+			case "floor":
+				return "⌊" + innerFunction + "⌋";
+			case "round":
+				return "round(" + innerFunction + ")";
+			case "ceil":
+				return "⌈" + innerFunction + "⌉";
+			case "abs":
+				return "|" + innerFunction + "|";
+			case "f'":
+				return "\\frac{d}{dx}(" + innerFunction + ")";
+			case "fact":
+				return innerFunction + "!";
+			case "sign":
+				return "sgn(" + innerFunction + ")";
+			default:
+				return "\\" + operand.Func.Type + "{" + innerFunction + "}";
+		}
+	}
+	public BinaryOperationToString(operation: BinaryOperation, firstOperand: string, secondOperand: string): string
+	{
+		switch (operation.Operator.Value)
+		{
+			case "*":
+				return `${firstOperand} \\cdot ${secondOperand}`;
+			case "/":
+				return "\\frac{" + firstOperand + "}{" + secondOperand + "}";
+			case ">=":
+				return firstOperand + "\\geq" + secondOperand;
+			case "<=":
+				return firstOperand + "\\leq" + secondOperand;
+			case "==":
+				return firstOperand + "\\equiv" + secondOperand;
+			case "!=":
+				return firstOperand + "\\neq" + secondOperand;
+			case "&":
+				return firstOperand + "\\; and \\;" + secondOperand;
+			case "|":
+				return firstOperand + "\\; or \\;" + secondOperand;
+			case "^":
+				let powerAfrer = () =>
+				{
+					return "{" + firstOperand + "}^{" + secondOperand + "}";
+				};
+
+				let powerBefore = () =>
+				{
+					var funct = <UnaryOperation>operation.FirstOperand.Value;
+					return `\\${funct.Func.Type}^${MathParser.OperandToText(operation.SecondOperand, this)}` + "{(" + this.ArgumentsToString(funct.Arguments) + ")}";
+				};
+
+				if (operation.FirstOperand.Value instanceof UnaryOperation)
+				{
+					var func = (operation.FirstOperand.Value).Func;
+					switch (func.Type)
+					{
+						case "cos":
+							return powerBefore();
+						case "sin":
+							return powerBefore();
+						case "tan":
+							return powerBefore();
+						case "cot":
+							return powerBefore();
+						case "cosh":
+							return powerBefore();
+						case "sinh":
+							return powerBefore();
+						case "tanh":
+							return powerBefore();
+						case "coth":
+							return powerBefore();
+						case "acos":
+							return powerBefore();
+						case "asin":
+							return powerBefore();
+						case "atan":
+							return powerBefore();
+						case "acot":
+							return powerBefore();
+						default:
+							return powerAfrer();
+					}
+				}
+				else
+				{
+					return powerAfrer();
+				}
+			default:
+				return `${firstOperand} ${operation.Operator.Value} ${secondOperand}`;
+		}
+	}
+}
+
+class PlainTextExpressionVisitor implements ExpressionVisitor
+{
+	public LiteralToString(operand: literal): string
+	{
+		return operand.toString();
+	}
+	public ParameterToString(operand: Parameter): string
+	{
+		return operand.Name;
+	}
+	public ArgumentsToString(args: ArgumentArray): string
+	{
+		var innerFunction = "";
+		for (let index = 0; index < args.Length; index++)
+		{
+			innerFunction += MathParser.OperandToText(args.Arguments[index], this);
+			if (index < args.Length - 1)
+			{
+				innerFunction += MathParser.Enumerator;
+			}
+		}
+		return innerFunction;
+	}
+	public UnaryOperationToString(operand: UnaryOperation): string
+	{
+		var innerFunction = this.ArgumentsToString(operand.Arguments);
+
+		switch (operand.Func.Type)
+		{
+			case "negative":
+				let argumentValue = operand.Arguments.Arguments[0].Value;
+				if (typeof argumentValue == "number" || typeof argumentValue == "boolean" || argumentValue instanceof Parameter || argumentValue instanceof UnaryOperation)
+				{
+					return "-" + innerFunction + "";
+				}
+				else
+				{
+					return "-(" + innerFunction + ")";
+				}
+			case "ln":
+				return `log(${innerFunction};e)`;
+			case "log":
+				return `log(${MathParser.OperandToText(operand.Arguments.Arguments[0], this)},${MathParser.OperandToText(operand.Arguments.Arguments[1], this)}`;
+			case "rand":
+				return "rand(" + innerFunction + ")";
+			case "root":
+				return `root(${MathParser.OperandToText(operand.Arguments.Arguments[0], this)},${MathParser.OperandToText(operand.Arguments.Arguments[1], this)}`;
+			case "!":
+				return "not (" + innerFunction + ")";		
+			case "exp":
+				return "e^{" + innerFunction + "}";
+			case "floor":
+				return "⌊" + innerFunction + "⌋";
+			case "round":
+				return "round(" + innerFunction + ")";
+			case "ceil":
+				return "⌈" + innerFunction + "⌉";
+			case "abs":
+				return "|" + innerFunction + "|";
+			case "f'":
+				return "(" + innerFunction + ")`";
+			case "fact":
+				return innerFunction + "!";
+			case "sign":
+				return "sgn(" + innerFunction + ")";
+			default:
+				return operand.Func.Type + "(" + innerFunction + ")";
+		}
+	}
+	public BinaryOperationToString(operation: BinaryOperation, firstOperand: string, secondOperand: string): string
+	{
+		switch (operation.Operator.Value)
+		{
+			case "^":
+				let powerAfrer = () =>
+				{
+					return firstOperand + "^" + secondOperand;
+				};
+
+				let powerBefore = () =>
+				{
+					var funct = <UnaryOperation>operation.FirstOperand.Value;
+					return `${funct.Func.Type}^${secondOperand}(` + this.ArgumentsToString(funct.Arguments) + ")";
+				};
+
+				if (operation.FirstOperand.Value instanceof UnaryOperation)
+				{
+					var func = (operation.FirstOperand.Value).Func;
+					switch (func.Type)
+					{
+						case "cos":
+							return powerBefore();
+						case "sin":
+							return powerBefore();
+						case "tan":
+							return powerBefore();
+						case "cot":
+							return powerBefore();
+						case "cosh":
+							return powerBefore();
+						case "sinh":
+							return powerBefore();
+						case "tanh":
+							return powerBefore();
+						case "coth":
+							return powerBefore();
+						case "acos":
+							return powerBefore();
+						case "asin":
+							return powerBefore();
+						case "atan":
+							return powerBefore();
+						case "acot":
+							return powerBefore();
+						default:
+							return powerAfrer();
+					}
+				}
+				else
+				{
+					return powerAfrer();
+				}
+			default:
+				return `${firstOperand} ${operation.Operator.Value} ${secondOperand}`;
+		}
+	}
+}
+
 class MathParser
 {
 	public static readonly Operators: Operator[] = [
@@ -502,7 +815,7 @@ class MathParser
 				}
 				else
 				{
-					throw new Error("Function wasn't found");
+					throw new Error(`Function ${operand.split(MathParser.OperandKey)[0]} wasn't found`);
 				}
 			}
 
@@ -629,8 +942,13 @@ class MathParser
 
 			if (expressionLast == expression)
 			{
-				throw new Error(`Can't open braces in: ${expression}`);
+				throw new Error(`Too many open braces`);
 			}
+		}
+
+		if (expression.includes(")"))
+		{
+			throw new Error(`Too many closing braces`);
 		}
 
 		return { operands: operands, expression: expression };
@@ -718,144 +1036,25 @@ class MathParser
 		}
 	}
 
-	private static ArgumentsToLatex(args: ArgumentArray): string
-	{
-		var innerFunction = "";
-		for (let index = 0; index < args.Length; index++)
-		{
-			innerFunction += MathParser.OperandToLatexFormula(args.Arguments[index]);
-			if (index < args.Length - 1)
-			{
-				innerFunction += MathParser.Enumerator;
-			}
-		}
-		return innerFunction;
-	}
-
-	public static OperandToLatexFormula(operand: Operand): string
+	public static OperandToText(operand: Operand, visitor: ExpressionVisitor): string
 	{
 		let output = "";
 
 		if (typeof operand.Value == "number" || typeof operand.Value == "boolean")
 		{
-			output += operand.Value.toString();
+			output += visitor.LiteralToString(operand.Value);
 		}
 		else if (operand.Value instanceof Parameter)
 		{
-			switch (operand.Value.Name)
-			{
-				case "pi":
-					output += "\pi";
-					break;
-				case "infinity":
-					output += "\infty";
-					break;
-				default:
-					output += operand.Value.Name;
-					break;
-			}
+			output += visitor.ParameterToString(operand.Value);
 		}
 		else if (operand.Value instanceof UnaryOperation)
 		{
-			var innerFunction = MathParser.ArgumentsToLatex(operand.Value.Arguments);
-
-			switch (operand.Value.Func.Type)
-			{
-				case "negative":
-					let argumentValue = operand.Value.Arguments.Arguments[0].Value;
-					if (typeof argumentValue == "number" || typeof operand.Value == "boolean" || argumentValue instanceof Parameter || argumentValue instanceof UnaryOperation)
-					{
-						output += "-" + innerFunction + "";
-					}
-					else
-					{
-						output += "-(" + innerFunction + ")";
-					}
-					break;
-				case "sqrt":
-					output += "\\sqrt{" + innerFunction + "}";
-					break;
-				case "cbrt":
-					output += "\\sqrt[3]{" + innerFunction + "}";
-					break;
-				case "rad":
-					output += innerFunction;
-					break;
-				case "deg":
-					output += "{" + innerFunction + "}" + "^{\\circ}";
-					break;
-				case "ln":
-					output += "\\log_e{(" + innerFunction + ")}";
-					break;
-				case "log":
-					output += "\\log_{" + MathParser.OperandToLatexFormula(operand.Value.Arguments.Arguments[1]) + "}{(" + MathParser.OperandToLatexFormula(operand.Value.Arguments.Arguments[0]) + ")}";
-					break;
-				case "rand":
-					output += "rand(" + innerFunction + ")";
-					break;
-				case "root":
-					output += "\\sqrt[" + MathParser.OperandToLatexFormula(operand.Value.Arguments.Arguments[1]) + "]{" + MathParser.OperandToLatexFormula(operand.Value.Arguments.Arguments[0]) + "}";
-					break;
-				case "!":
-					output += "not \\;(" + innerFunction + ")";
-					break;
-				case "acos":
-					output += "\\arccos{(" + innerFunction + ")}";
-					break;
-				case "asin":
-					output += "\\arcsin{(" + innerFunction + ")}";
-					break;
-				case "atan":
-					output += "\\arctan{(" + innerFunction + ")}";
-					break;
-				case "acot":
-					output += "\\arctan{(\\frac{1}{" + innerFunction + "})}";
-					break;
-				case "acosh":
-					output += "\\cosh^{-1}{(" + innerFunction + ")}";
-					break;
-				case "asinh":
-					output += "\\sinh^{-1}1{(" + innerFunction + ")}";
-					break;
-				case "atanh":
-					output += "\\tanh^{-1}{(" + innerFunction + ")}";
-					break;
-				case "acoth":
-					output += "\\tanh^{-1}{(\\frac{1}{" + innerFunction + "})}";
-					break;
-				case "exp":
-					output += "e^{" + innerFunction + "}";
-					break;
-				case "floor":
-					output += "⌊" + innerFunction + "⌋";
-					break;
-				case "round":
-					output += "round(" + innerFunction + ")";
-					break;
-				case "ceil":
-					output += "⌈" + innerFunction + "⌉";
-					break;
-				case "abs":
-					output += "|" + innerFunction + "|";
-					break;
-				case "f'":
-					output += "\\frac{d}{dx}(" + innerFunction + ")";
-					break;
-				case "fact":
-					output += innerFunction + "!";
-					break;
-				case "sign":
-					output += "sgn(" + innerFunction + ")";
-					break;
-				default:
-					output += "\\" + operand.Value.Func.Type + "{" + innerFunction + "}";
-					break;
-			}
-
+			output += visitor.UnaryOperationToString(operand.Value);
 		}
 		else if (operand.Value instanceof BinaryOperation)
 		{
-			output += MathParser.BinaryOperationToLatexFormula(operand.Value);
+			output += MathParser.BinaryOperationToLatexFormula(operand.Value, visitor);
 		}
 		else
 		{
@@ -865,12 +1064,10 @@ class MathParser
 		return output;
 	}
 
-	public static BinaryOperationToLatexFormula(operation: BinaryOperation): string
+	public static BinaryOperationToLatexFormula(operation: BinaryOperation, visitor: ExpressionVisitor): string
 	{
-		let output = "";
-
-		let firstOperand = MathParser.OperandToLatexFormula(operation.FirstOperand);
-		let secondOperand = MathParser.OperandToLatexFormula(operation.SecondOperand);
+		let firstOperand = MathParser.OperandToText(operation.FirstOperand, visitor);
+		let secondOperand = MathParser.OperandToText(operation.SecondOperand, visitor);
 
 		if (operation.FirstOperand.Value instanceof BinaryOperation)
 		{
@@ -880,7 +1077,6 @@ class MathParser
 				firstOperand = "(" + firstOperand + ")";
 			}
 		}
-
 		if (operation.SecondOperand.Value instanceof BinaryOperation)
 		{
 			var secondOperation = operation.SecondOperand.Value;
@@ -890,90 +1086,7 @@ class MathParser
 			}
 		}
 
-		switch (operation.Operator.Value)
-		{
-			case "*":
-				output += `${firstOperand} \\cdot ${secondOperand}`;
-				break;
-			case "/":
-				output += "\\frac{" + firstOperand + "}{" + secondOperand + "}";
-				break;
-			case ">=":
-				output += firstOperand + "\\geq" + secondOperand;
-				break;
-			case "<=":
-				output += firstOperand + "\\leq" + secondOperand;
-				break;
-			case "==":
-				output += firstOperand + "\\equiv" + secondOperand;
-				break;
-			case "!=":
-				output += firstOperand + "\\neq" + secondOperand;
-				break;
-			case "&":
-				output += firstOperand + "\\; and \\;" + secondOperand;
-				break;
-			case "|":
-				output += firstOperand + "\\; or \\;" + secondOperand;
-				break;
-			case "^":
-				let powerAfrer = () =>
-				{
-					output += "{" + firstOperand + "}^{" + secondOperand + "}";
-				};
-
-				let powerBefore = () =>
-				{
-					var funct = <UnaryOperation>operation.FirstOperand.Value;
-					output += `\\${funct.Func.Type}^${MathParser.OperandToLatexFormula(operation.SecondOperand)}` + "{(" + MathParser.ArgumentsToLatex(funct.Arguments) + ")}";
-				};
-
-				if (operation.FirstOperand.Value instanceof UnaryOperation)
-				{
-					var func = (operation.FirstOperand.Value).Func;
-					switch (func.Type)
-					{
-						case "cos":
-							powerBefore();
-							break;
-						case "sin":
-							powerBefore();
-							break;
-						case "tan":
-							powerBefore();
-							break;
-						case "cot":
-							powerBefore();
-							break;
-						case "acos":
-							powerBefore();
-							break;
-						case "asin":
-							powerBefore();
-							break;
-						case "atan":
-							powerBefore();
-							break;
-						case "acot":
-							powerBefore();
-							break;
-						default:
-							powerAfrer();
-							break;
-					}
-				}
-				else
-				{
-					powerAfrer();
-				}
-
-				break;
-			default:
-				output += `${firstOperand} ${operation.Operator.Value} ${secondOperand}`;
-				break;
-		}
-
-		return output;
+		return visitor.BinaryOperationToString(operation, firstOperand, secondOperand);
 	}
 }
 
@@ -1039,7 +1152,8 @@ class UnitTests
 			let result = UnitTests.EvaluateHelper(expression);
 			UnitTests.DisplayResult(result.toString(), "Error", false, `"${expression}"`);
 		}
-		catch {
+		catch
+		{
 			UnitTests.DisplayResult("Error", "Error", true, `"${expression}"`);
 		}
 	}
@@ -1070,7 +1184,7 @@ function Evaluate()
 	if (input && result && expression)
 	{
 		result.innerHTML = UnitTests.EvaluateHelper((<HTMLInputElement>input).value).toString();
-		expression.innerHTML = "$" + MathParser.OperandToLatexFormula(MathParser.Parse((<HTMLInputElement>input).value)) + "$";
+		expression.innerHTML = "$" + MathParser.OperandToText(MathParser.Parse((<HTMLInputElement>input).value), new LatexExpressionVisitor()) + "$";
 	}
 }
 
