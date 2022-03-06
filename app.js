@@ -100,6 +100,13 @@ class MathFunction {
         this.Func = func;
     }
 }
+class Preprocessor {
+    constructor(type, argsCount, func) {
+        this.Type = type;
+        this.ArgumentsCount = argsCount;
+        this.Func = func;
+    }
+}
 class LatexExpressionVisitor {
     LiteralToString(operand) {
         return operand.toString();
@@ -376,7 +383,7 @@ class MathParser {
         let calculate = (oper) => {
             let sign = 1;
             for (let index = oper.length - 1; !MathParser.IsBasicOperator(oper); index--) {
-                if (oper[index] == '-') {
+                if (oper[index] == '-' && index >= 0) {
                     sign = -sign;
                     oper = oper.substr(0, oper.length - 1);
                 }
@@ -631,6 +638,30 @@ class MathParser {
         let openedBraces = MathParser.OpenBraces(expression, parameters);
         return MathParser.SplitExpression(openedBraces.expression, parameters, openedBraces.operands);
     }
+    static Preprocess(operand) {
+        if (typeof operand.Value == "number" || typeof operand.Value == "boolean") {
+            return operand;
+        }
+        else if (operand.Value instanceof Parameter) {
+            return operand;
+        }
+        else if (operand.Value instanceof UnaryOperation && operand.Value.Func instanceof Preprocessor) {
+            if (operand.Value.Arguments.Length == 1) {
+                let result = operand.Value.Func.Func(operand.Value.Arguments.Arguments[0]);
+                return result;
+            }
+            else {
+                throw new Error("Incorrect input");
+            }
+        }
+        else if (operand.Value instanceof BinaryOperation) {
+            let result = new BinaryOperation(MathParser.Preprocess(operand.Value.FirstOperand), MathParser.Preprocess(operand.Value.SecondOperand), operand.Value.Operator);
+            return new Operand(result);
+        }
+        else {
+            return operand;
+        }
+    }
     static Evaluate(operation) {
         let firstOperand = MathParser.EvaluateOperand(operation.FirstOperand);
         let secondOperand = MathParser.EvaluateOperand(operation.SecondOperand);
@@ -670,13 +701,14 @@ class MathParser {
         }
     }
     static EvaluateOperand(operand) {
+        operand = MathParser.Preprocess(operand);
         if (typeof operand.Value == "number" || typeof operand.Value == "boolean") {
             return operand.Value;
         }
         else if (operand.Value instanceof Parameter) {
             return operand.Value.Value;
         }
-        else if (operand.Value instanceof UnaryOperation) {
+        else if (operand.Value instanceof UnaryOperation && operand.Value.Func instanceof MathFunction) {
             let evaluatedArguments = [];
             for (let index = 0; index < operand.Value.Func.ArgumentsCount; index++) {
                 evaluatedArguments.push(MathParser.EvaluateOperand(operand.Value.Arguments.Arguments[index]));
@@ -781,11 +813,79 @@ MathParser.Functions = [
     new MathFunction("fact", 1, (value) => { let result = 1; for (let i = 1; i <= Extensions.asNumber(value[0]); i++) {
         result *= i;
     } return result; }),
-    new MathFunction("f'", 1, () => { throw new Error("Not implemented"); }),
+    new Preprocessor("f'", 1, (value) => {
+        return AnalyticalMath.Derivative(value);
+    }),
     new MathFunction("rand", 2, (value) => { return Math.random() * (Extensions.asNumber(value[1]) - Extensions.asNumber(value[0])) + Extensions.asNumber(value[0]); }),
     new MathFunction("log", 2, (value) => { return Math.log(Extensions.asNumber(value[0])) / Math.log(Extensions.asNumber(value[1])); }),
     new MathFunction("root", 2, (value) => { return Math.pow(Extensions.asNumber(value[0]), 1 / Extensions.asNumber(value[1])); })
 ];
+class AnalyticalMath {
+    static Derivative(value) {
+        const findFunc = (name) => {
+            const func = MathParser.Functions.find((value) => {
+                if (value.Type == name) {
+                    return true;
+                }
+                else {
+                    return false;
+                }
+            });
+            if (!func) {
+                throw new Error(`Function ${name} wasn't found`);
+            }
+            else {
+                return func;
+            }
+        };
+        const findOper = (oper) => {
+            const operator = MathParser.Operators.find((value) => {
+                if (value.Value == oper) {
+                    return true;
+                }
+                else {
+                    return false;
+                }
+            });
+            if (!operator) {
+                throw new Error(`Operator ${oper} wasn't found`);
+            }
+            else {
+                return operator;
+            }
+        };
+        if (typeof value.Value == "number" || typeof value.Value == "boolean") {
+            return new Operand(0);
+        }
+        else if (value.Value instanceof Parameter) {
+            if (value.Value.Name == "x") {
+                return new Operand(1);
+            }
+            else {
+                return new Operand(0);
+            }
+        }
+        else if (value.Value instanceof UnaryOperation) {
+            switch (value.Value.Func.Type) {
+                case "cos":
+                    return new Operand(new BinaryOperation(new Operand(new UnaryOperation(new ArgumentArray([new Operand(new UnaryOperation(value.Value.Arguments, findFunc("sin")))]), MathParser.NegativeFunction)), AnalyticalMath.Derivative(value.Value.Arguments.Arguments[0]), findOper("*")));
+                case "sin":
+                    return new Operand(new BinaryOperation(new Operand(new UnaryOperation(value.Value.Arguments, findFunc("cos"))), AnalyticalMath.Derivative(value.Value.Arguments.Arguments[0]), findOper("*")));
+            }
+        }
+        else if (value.Value instanceof BinaryOperation) {
+            switch (value.Value.Operator.Value) {
+                case "+":
+                    return new Operand(new BinaryOperation(AnalyticalMath.Derivative(value.Value.FirstOperand), AnalyticalMath.Derivative(value.Value.SecondOperand), findOper("+")));
+                case "-":
+                    return new Operand(new BinaryOperation(AnalyticalMath.Derivative(value.Value.FirstOperand), AnalyticalMath.Derivative(value.Value.SecondOperand), findOper("-")));
+                case "*":
+                    return new Operand(new BinaryOperation(new Operand(new BinaryOperation(AnalyticalMath.Derivative(value.Value.FirstOperand), value.Value.SecondOperand, findOper("*"))), new Operand(new BinaryOperation(value.Value.FirstOperand, AnalyticalMath.Derivative(value.Value.SecondOperand), findOper("*"))), findOper("+")));
+            }
+        }
+        throw new Error("Can't calc derivative");
+    }
+}
 class UnitTests {
     static DisplayResult(received, expected, passed, type) {
         if (passed) {
@@ -833,7 +933,8 @@ class UnitTests {
         UnitTests.DisplayResult(expression ? "true" : "false", "true", expression, `"is true"`);
     }
     static EvaluateHelper(expression) {
-        let evaluated = MathParser.EvaluateOperand(MathParser.Parse(expression));
+        let parsed = MathParser.Parse(expression);
+        let evaluated = MathParser.EvaluateOperand(parsed);
         return evaluated;
     }
     static RunTests() {
@@ -850,7 +951,7 @@ function Evaluate() {
     let expression = document.getElementById('expression');
     if (input && result && expression) {
         result.innerHTML = UnitTests.EvaluateHelper(input.value).toString();
-        expression.innerHTML = "$" + MathParser.OperandToText(MathParser.Parse(input.value), new LatexExpressionVisitor()) + "$";
+        expression.innerHTML = "$" + MathParser.OperandToText(MathParser.Preprocess(MathParser.Parse(input.value)), new LatexExpressionVisitor()) + "$";
     }
 }
 UnitTests.DeclareTestCase(() => {
