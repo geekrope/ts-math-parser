@@ -130,8 +130,8 @@ class BinaryOperation
 class UnaryOperation
 {
 	public readonly Arguments: ArgumentArray;
-	public readonly Func: MathFunction | Preprocessor;
-	public constructor(argument: ArgumentArray, func: MathFunction | Preprocessor)
+	public readonly Func: MathParserFunction;
+	public constructor(argument: ArgumentArray, func: MathParserFunction)
 	{
 		this.Arguments = argument;
 		this.Func = func;
@@ -528,7 +528,7 @@ class MathParser
 
 	public static readonly NegativeFunction: MathFunction = new MathFunction("negative", 1, (value: (literal)[]) => { return -Extensions.asNumber(value[0]); });
 
-	public static readonly Functions: (MathFunction | Preprocessor)[] = [
+	public static readonly Functions: (MathParserFunction)[] = [
 		new MathFunction("rad", 1, (value: (literal)[]) => { return Extensions.asNumber(value[0]) / 180.0 * Math.PI; }),
 		new MathFunction("deg", 1, (value: (literal)[]) => { return Extensions.asNumber(value[0]) * 180.0 / Math.PI; }),
 
@@ -824,7 +824,7 @@ class MathParser
 		{
 			let returnValue: Operand | undefined;
 
-			let suitableFunctions: (MathFunction | Preprocessor)[] = [];
+			let suitableFunctions: MathParserFunction[] = [];
 
 			MathParser.Functions.forEach((func) =>
 			{
@@ -846,7 +846,7 @@ class MathParser
 				}
 			}
 
-			let mostSuitableFunction: MathFunction | Preprocessor = suitableFunctions[0];
+			let mostSuitableFunction: MathParserFunction = suitableFunctions[0];
 
 			suitableFunctions.forEach((func) =>
 			{
@@ -992,15 +992,7 @@ class MathParser
 
 	public static Preprocess(operand: Operand): Operand
 	{
-		if (typeof operand.Value == "number" || typeof operand.Value == "boolean")
-		{
-			return operand;
-		}
-		else if (operand.Value instanceof Parameter)
-		{
-			return operand;
-		}
-		else if (operand.Value instanceof UnaryOperation && operand.Value.Func instanceof Preprocessor)
+		if (operand.Value instanceof UnaryOperation && operand.Value.Func instanceof Preprocessor)
 		{
 			if (operand.Value.Arguments.Length == 1)
 			{
@@ -1153,70 +1145,95 @@ class MathParser
 	}
 }
 
+class ExpressionBuilder
+{
+	public static FindFunction(name: string)
+	{
+		const func = MathParser.Functions.find((value) =>
+		{
+			if (value.Type == name)
+			{
+				return true;
+			}
+			else
+			{
+				return false;
+			}
+		});
+
+		if (!func)
+		{
+			throw new Error(`Function ${name} wasn't found`);
+		}
+		else
+		{
+			return func;
+		}
+	}
+
+	public static FindOperator(oper: string)
+	{
+		const operator = MathParser.Operators.find((value) =>
+		{
+			if (value.Value == oper)
+			{
+				return true;
+			}
+			else
+			{
+				return false;
+			}
+		});
+
+		if (!operator)
+		{
+			throw new Error(`Operator ${oper} wasn't found`);
+		}
+		else
+		{
+			return operator;
+		}
+	}
+
+	public static GetLiteral(value: literal)
+	{
+		return new Operand(value);
+	}
+
+	public static GetParameter(name: string, value: literal)
+	{
+		return new Operand(new Parameter(name, value));
+	}
+
+	public static GetUnaryOperation(func: string | MathParserFunction, argument?: Operand[], ...args: Operand[])
+	{
+		const argsList = argument?.concat(args);
+		return new Operand(new UnaryOperation(new ArgumentArray(argsList ? argsList : args), typeof func == "string" ? ExpressionBuilder.FindFunction(func) : func));
+	}
+
+	public static GetBinaryOperation(firstOperand: Operand, secondOperand: Operand, operator: string)
+	{
+		return new Operand(new BinaryOperation(firstOperand, secondOperand, ExpressionBuilder.FindOperator(operator)));
+	}
+}
+
 class AnalyticalMath
 {
 	public static Derivative(value: Operand): Operand
 	{
-		const findFunc = (name: string) =>
-		{
-			const func = MathParser.Functions.find((value) =>
-			{
-				if (value.Type == name)
-				{
-					return true;
-				}
-				else
-				{
-					return false;
-				}
-			});
-
-			if (!func)
-			{
-				throw new Error(`Function ${name} wasn't found`);
-			}
-			else
-			{
-				return func;
-			}
-		}
-		const findOper = (oper: string) =>
-		{
-			const operator = MathParser.Operators.find((value) =>
-			{
-				if (value.Value == oper)
-				{
-					return true;
-				}
-				else
-				{
-					return false;
-				}
-			});
-
-			if (!operator)
-			{
-				throw new Error(`Operator ${oper} wasn't found`);
-			}
-			else
-			{
-				return operator;
-			}
-		}
-
 		if (typeof value.Value == "number" || typeof value.Value == "boolean")
 		{
-			return new Operand(0);
+			return ExpressionBuilder.GetLiteral(0);
 		}
 		else if (value.Value instanceof Parameter)
 		{
 			if (value.Value.Name == "x")
 			{
-				return new Operand(1);
+				return ExpressionBuilder.GetLiteral(1);
 			}
 			else
 			{
-				return new Operand(0);
+				return ExpressionBuilder.GetLiteral(0);
 			}
 		}
 		else if (value.Value instanceof UnaryOperation)
@@ -1224,22 +1241,36 @@ class AnalyticalMath
 			switch (value.Value.Func.Type)
 			{
 				case "cos":
-					return new Operand(
-						new BinaryOperation(
-							new Operand(
-								new UnaryOperation(
-									new ArgumentArray(
-										[new Operand(new UnaryOperation(value.Value.Arguments, findFunc("sin")))]
-									),
-									MathParser.NegativeFunction)
-							), AnalyticalMath.Derivative(value.Value.Arguments.Arguments[0]), findOper("*"))
-					);
+					return ExpressionBuilder.GetBinaryOperation(ExpressionBuilder.GetUnaryOperation(MathParser.NegativeFunction, undefined, ExpressionBuilder.GetUnaryOperation("sin", value.Value.Arguments.Arguments)), AnalyticalMath.Derivative(value.Value.Arguments.Arguments[0]), "*");
 				case "sin":
-					return new Operand(
-						new BinaryOperation(
-							new Operand(new UnaryOperation(value.Value.Arguments, findFunc("cos"))
-							), AnalyticalMath.Derivative(value.Value.Arguments.Arguments[0]), findOper("*"))
-					);
+					return ExpressionBuilder.GetBinaryOperation(ExpressionBuilder.GetUnaryOperation("cos", value.Value.Arguments.Arguments), AnalyticalMath.Derivative(value.Value.Arguments.Arguments[0]), "*");
+				case "tan":
+					return ExpressionBuilder.GetBinaryOperation(ExpressionBuilder.GetBinaryOperation(ExpressionBuilder.GetLiteral(1), ExpressionBuilder.GetBinaryOperation(ExpressionBuilder.GetUnaryOperation("cos", value.Value.Arguments.Arguments), ExpressionBuilder.GetLiteral(2), "^"), "/"), AnalyticalMath.Derivative(value.Value.Arguments.Arguments[0]), "*");
+				case "cot":
+					return ExpressionBuilder.GetUnaryOperation(MathParser.NegativeFunction, undefined, ExpressionBuilder.GetBinaryOperation(ExpressionBuilder.GetBinaryOperation(ExpressionBuilder.GetLiteral(1), ExpressionBuilder.GetBinaryOperation(ExpressionBuilder.GetUnaryOperation("sin", value.Value.Arguments.Arguments), ExpressionBuilder.GetLiteral(2), "^"), "/"), AnalyticalMath.Derivative(value.Value.Arguments.Arguments[0]), "*"));
+
+				case "acos":
+					return ExpressionBuilder.GetBinaryOperation(ExpressionBuilder.GetBinaryOperation(ExpressionBuilder.GetLiteral(1), ExpressionBuilder.GetUnaryOperation(MathParser.NegativeFunction, undefined, ExpressionBuilder.GetUnaryOperation("sin", undefined, ExpressionBuilder.GetUnaryOperation("acos", value.Value.Arguments.Arguments))), "/"), AnalyticalMath.Derivative(value.Value.Arguments.Arguments[0]), "*");
+				case "asin":
+					return ExpressionBuilder.GetBinaryOperation(ExpressionBuilder.GetBinaryOperation(ExpressionBuilder.GetLiteral(1), ExpressionBuilder.GetUnaryOperation("cos", undefined, ExpressionBuilder.GetUnaryOperation("asin", value.Value.Arguments.Arguments)), "/"), AnalyticalMath.Derivative(value.Value.Arguments.Arguments[0]), "*");
+				case "atan":
+					return ExpressionBuilder.GetBinaryOperation(ExpressionBuilder.GetBinaryOperation(ExpressionBuilder.GetLiteral(1), ExpressionBuilder.GetBinaryOperation(ExpressionBuilder.GetLiteral(1), ExpressionBuilder.GetBinaryOperation(value.Value.Arguments.Arguments[0], ExpressionBuilder.GetLiteral(2), "^"), "+"), "/"), AnalyticalMath.Derivative(value.Value.Arguments.Arguments[0]), "*");
+				case "acot":
+					return ExpressionBuilder.GetBinaryOperation(ExpressionBuilder.GetUnaryOperation(MathParser.NegativeFunction, undefined, ExpressionBuilder.GetBinaryOperation(ExpressionBuilder.GetLiteral(1), ExpressionBuilder.GetBinaryOperation(ExpressionBuilder.GetLiteral(1), ExpressionBuilder.GetBinaryOperation(value.Value.Arguments.Arguments[0], ExpressionBuilder.GetLiteral(2), "^"), "+"), "/")), AnalyticalMath.Derivative(value.Value.Arguments.Arguments[0]), "*");
+
+				case "cosh":
+					return ExpressionBuilder.GetBinaryOperation(ExpressionBuilder.GetUnaryOperation("sinh", value.Value.Arguments.Arguments), AnalyticalMath.Derivative(value.Value.Arguments.Arguments[0]), "*");
+				case "sinh":
+					return ExpressionBuilder.GetBinaryOperation(ExpressionBuilder.GetUnaryOperation("cosh", value.Value.Arguments.Arguments), AnalyticalMath.Derivative(value.Value.Arguments.Arguments[0]), "*");
+				case "tanh":
+					return ExpressionBuilder.GetBinaryOperation(ExpressionBuilder.GetBinaryOperation(ExpressionBuilder.GetLiteral(1), ExpressionBuilder.GetBinaryOperation(ExpressionBuilder.GetUnaryOperation("cosh", value.Value.Arguments.Arguments), ExpressionBuilder.GetLiteral(2), "^"), "/"), AnalyticalMath.Derivative(value.Value.Arguments.Arguments[0]), "*");
+				case "coth":
+					return ExpressionBuilder.GetUnaryOperation(MathParser.NegativeFunction, undefined, ExpressionBuilder.GetBinaryOperation(ExpressionBuilder.GetBinaryOperation(ExpressionBuilder.GetLiteral(1), ExpressionBuilder.GetBinaryOperation(ExpressionBuilder.GetUnaryOperation("sinh", value.Value.Arguments.Arguments), ExpressionBuilder.GetLiteral(2), "^"), "/"), AnalyticalMath.Derivative(value.Value.Arguments.Arguments[0]), "*"));
+
+				case "acosh":
+					return ExpressionBuilder.GetBinaryOperation(ExpressionBuilder.GetBinaryOperation(ExpressionBuilder.GetLiteral(1), ExpressionBuilder.GetUnaryOperation("sinh", undefined, ExpressionBuilder.GetUnaryOperation("acosh", value.Value.Arguments.Arguments)), "/"), AnalyticalMath.Derivative(value.Value.Arguments.Arguments[0]), "*");
+				case "asinh":
+					return ExpressionBuilder.GetBinaryOperation(ExpressionBuilder.GetBinaryOperation(ExpressionBuilder.GetLiteral(1), ExpressionBuilder.GetUnaryOperation("cosh", undefined, ExpressionBuilder.GetUnaryOperation("asinh", value.Value.Arguments.Arguments)), "/"), AnalyticalMath.Derivative(value.Value.Arguments.Arguments[0]), "*");
 			}
 		}
 		else if (value.Value instanceof BinaryOperation)
@@ -1251,7 +1282,7 @@ class AnalyticalMath
 						new BinaryOperation(
 							AnalyticalMath.Derivative(value.Value.FirstOperand),
 							AnalyticalMath.Derivative(value.Value.SecondOperand),
-							findOper("+")
+							ExpressionBuilder.FindOperator("+")
 						)
 					);
 				case "-":
@@ -1259,7 +1290,7 @@ class AnalyticalMath
 						new BinaryOperation(
 							AnalyticalMath.Derivative(value.Value.FirstOperand),
 							AnalyticalMath.Derivative(value.Value.SecondOperand),
-							findOper("-")
+							ExpressionBuilder.FindOperator("-")
 						)
 					);
 				case "*":
@@ -1269,17 +1300,17 @@ class AnalyticalMath
 								new BinaryOperation(
 									AnalyticalMath.Derivative(value.Value.FirstOperand),
 									value.Value.SecondOperand,
-									findOper("*")
+									ExpressionBuilder.FindOperator("*")
 								)
 							),
 							new Operand(
 								new BinaryOperation(
 									value.Value.FirstOperand,
 									AnalyticalMath.Derivative(value.Value.SecondOperand),
-									findOper("*")
+									ExpressionBuilder.FindOperator("*")
 								)
 							),
-							findOper("+")
+							ExpressionBuilder.FindOperator("+")
 						)
 					);
 			}
