@@ -639,14 +639,24 @@ class MathParser {
         return MathParser.SplitExpression(openedBraces.expression, parameters, openedBraces.operands);
     }
     static Preprocess(operand) {
-        if (operand.Value instanceof UnaryOperation && operand.Value.Func instanceof Preprocessor) {
+        if (operand.Value instanceof ArgumentArray) {
+            let array = [];
+            operand.Value.Arguments.forEach((operand) => { array.push(MathParser.Preprocess(operand)); });
+            let result = new ArgumentArray(array);
+            return new Operand(result);
+        }
+        else if (operand.Value instanceof UnaryOperation && operand.Value.Func instanceof Preprocessor) {
             if (operand.Value.Arguments.Length == 1) {
-                let result = operand.Value.Func.Func(operand.Value.Arguments.Arguments[0]);
+                let result = operand.Value.Func.Func(MathParser.Preprocess(operand.Value.Arguments.Arguments[0]));
                 return result;
             }
             else {
                 throw new Error("Incorrect input");
             }
+        }
+        else if (operand.Value instanceof UnaryOperation && operand.Value.Func instanceof MathFunction) {
+            let result = ExpressionBuilder.UnaryOperation(operand.Value.Func, MathParser.Preprocess(new Operand(operand.Value.Arguments)).Value.Arguments);
+            return result;
         }
         else if (operand.Value instanceof BinaryOperation) {
             let result = new BinaryOperation(MathParser.Preprocess(operand.Value.FirstOperand), MathParser.Preprocess(operand.Value.SecondOperand), operand.Value.Operator);
@@ -847,73 +857,83 @@ class ExpressionBuilder {
             return operator;
         }
     }
-    static GetLiteral(value) {
+    static Literal(value) {
         return new Operand(value);
     }
-    static GetParameter(name, value) {
+    static Parameter(name, value) {
         return new Operand(new Parameter(name, value));
     }
-    static GetUnaryOperation(func, argument, ...args) {
+    static UnaryOperation(func, argument, ...args) {
         const argsList = argument === null || argument === void 0 ? void 0 : argument.concat(args);
         return new Operand(new UnaryOperation(new ArgumentArray(argsList ? argsList : args), typeof func == "string" ? ExpressionBuilder.FindFunction(func) : func));
     }
-    static GetBinaryOperation(firstOperand, secondOperand, operator) {
+    static BinaryOperation(firstOperand, secondOperand, operator) {
         return new Operand(new BinaryOperation(firstOperand, secondOperand, ExpressionBuilder.FindOperator(operator)));
     }
 }
 class AnalyticalMath {
     static Derivative(value) {
         if (typeof value.Value == "number" || typeof value.Value == "boolean") {
-            return ExpressionBuilder.GetLiteral(0);
+            return ExpressionBuilder.Literal(0);
         }
         else if (value.Value instanceof Parameter) {
             if (value.Value.Name == "x") {
-                return ExpressionBuilder.GetLiteral(1);
+                return ExpressionBuilder.Literal(1);
             }
             else {
-                return ExpressionBuilder.GetLiteral(0);
+                return ExpressionBuilder.Literal(0);
             }
         }
         else if (value.Value instanceof UnaryOperation) {
             switch (value.Value.Func.Type) {
                 case "cos":
-                    return ExpressionBuilder.GetBinaryOperation(ExpressionBuilder.GetUnaryOperation(MathParser.NegativeFunction, undefined, ExpressionBuilder.GetUnaryOperation("sin", value.Value.Arguments.Arguments)), AnalyticalMath.Derivative(value.Value.Arguments.Arguments[0]), "*");
+                    return ExpressionBuilder.BinaryOperation(ExpressionBuilder.UnaryOperation(MathParser.NegativeFunction, undefined, ExpressionBuilder.UnaryOperation("sin", value.Value.Arguments.Arguments)), AnalyticalMath.Derivative(value.Value.Arguments.Arguments[0]), "*");
                 case "sin":
-                    return ExpressionBuilder.GetBinaryOperation(ExpressionBuilder.GetUnaryOperation("cos", value.Value.Arguments.Arguments), AnalyticalMath.Derivative(value.Value.Arguments.Arguments[0]), "*");
+                    return ExpressionBuilder.BinaryOperation(ExpressionBuilder.UnaryOperation("cos", value.Value.Arguments.Arguments), AnalyticalMath.Derivative(value.Value.Arguments.Arguments[0]), "*");
                 case "tan":
-                    return ExpressionBuilder.GetBinaryOperation(ExpressionBuilder.GetBinaryOperation(ExpressionBuilder.GetLiteral(1), ExpressionBuilder.GetBinaryOperation(ExpressionBuilder.GetUnaryOperation("cos", value.Value.Arguments.Arguments), ExpressionBuilder.GetLiteral(2), "^"), "/"), AnalyticalMath.Derivative(value.Value.Arguments.Arguments[0]), "*");
+                    return ExpressionBuilder.BinaryOperation(ExpressionBuilder.BinaryOperation(ExpressionBuilder.Literal(1), ExpressionBuilder.BinaryOperation(ExpressionBuilder.UnaryOperation("cos", value.Value.Arguments.Arguments), ExpressionBuilder.Literal(2), "^"), "/"), AnalyticalMath.Derivative(value.Value.Arguments.Arguments[0]), "*");
                 case "cot":
-                    return ExpressionBuilder.GetUnaryOperation(MathParser.NegativeFunction, undefined, ExpressionBuilder.GetBinaryOperation(ExpressionBuilder.GetBinaryOperation(ExpressionBuilder.GetLiteral(1), ExpressionBuilder.GetBinaryOperation(ExpressionBuilder.GetUnaryOperation("sin", value.Value.Arguments.Arguments), ExpressionBuilder.GetLiteral(2), "^"), "/"), AnalyticalMath.Derivative(value.Value.Arguments.Arguments[0]), "*"));
+                    return ExpressionBuilder.UnaryOperation(MathParser.NegativeFunction, undefined, ExpressionBuilder.BinaryOperation(ExpressionBuilder.BinaryOperation(ExpressionBuilder.Literal(1), ExpressionBuilder.BinaryOperation(ExpressionBuilder.UnaryOperation("sin", value.Value.Arguments.Arguments), ExpressionBuilder.Literal(2), "^"), "/"), AnalyticalMath.Derivative(value.Value.Arguments.Arguments[0]), "*"));
                 case "acos":
-                    return ExpressionBuilder.GetBinaryOperation(ExpressionBuilder.GetBinaryOperation(ExpressionBuilder.GetLiteral(1), ExpressionBuilder.GetUnaryOperation(MathParser.NegativeFunction, undefined, ExpressionBuilder.GetUnaryOperation("sin", undefined, ExpressionBuilder.GetUnaryOperation("acos", value.Value.Arguments.Arguments))), "/"), AnalyticalMath.Derivative(value.Value.Arguments.Arguments[0]), "*");
+                    return ExpressionBuilder.BinaryOperation(ExpressionBuilder.BinaryOperation(ExpressionBuilder.Literal(1), ExpressionBuilder.UnaryOperation(MathParser.NegativeFunction, undefined, ExpressionBuilder.UnaryOperation("sin", undefined, ExpressionBuilder.UnaryOperation("acos", value.Value.Arguments.Arguments))), "/"), AnalyticalMath.Derivative(value.Value.Arguments.Arguments[0]), "*");
                 case "asin":
-                    return ExpressionBuilder.GetBinaryOperation(ExpressionBuilder.GetBinaryOperation(ExpressionBuilder.GetLiteral(1), ExpressionBuilder.GetUnaryOperation("cos", undefined, ExpressionBuilder.GetUnaryOperation("asin", value.Value.Arguments.Arguments)), "/"), AnalyticalMath.Derivative(value.Value.Arguments.Arguments[0]), "*");
+                    return ExpressionBuilder.BinaryOperation(ExpressionBuilder.BinaryOperation(ExpressionBuilder.Literal(1), ExpressionBuilder.UnaryOperation("cos", undefined, ExpressionBuilder.UnaryOperation("asin", value.Value.Arguments.Arguments)), "/"), AnalyticalMath.Derivative(value.Value.Arguments.Arguments[0]), "*");
                 case "atan":
-                    return ExpressionBuilder.GetBinaryOperation(ExpressionBuilder.GetBinaryOperation(ExpressionBuilder.GetLiteral(1), ExpressionBuilder.GetBinaryOperation(ExpressionBuilder.GetLiteral(1), ExpressionBuilder.GetBinaryOperation(value.Value.Arguments.Arguments[0], ExpressionBuilder.GetLiteral(2), "^"), "+"), "/"), AnalyticalMath.Derivative(value.Value.Arguments.Arguments[0]), "*");
+                    return ExpressionBuilder.BinaryOperation(ExpressionBuilder.BinaryOperation(ExpressionBuilder.Literal(1), ExpressionBuilder.BinaryOperation(ExpressionBuilder.Literal(1), ExpressionBuilder.BinaryOperation(value.Value.Arguments.Arguments[0], ExpressionBuilder.Literal(2), "^"), "+"), "/"), AnalyticalMath.Derivative(value.Value.Arguments.Arguments[0]), "*");
                 case "acot":
-                    return ExpressionBuilder.GetBinaryOperation(ExpressionBuilder.GetUnaryOperation(MathParser.NegativeFunction, undefined, ExpressionBuilder.GetBinaryOperation(ExpressionBuilder.GetLiteral(1), ExpressionBuilder.GetBinaryOperation(ExpressionBuilder.GetLiteral(1), ExpressionBuilder.GetBinaryOperation(value.Value.Arguments.Arguments[0], ExpressionBuilder.GetLiteral(2), "^"), "+"), "/")), AnalyticalMath.Derivative(value.Value.Arguments.Arguments[0]), "*");
+                    return ExpressionBuilder.BinaryOperation(ExpressionBuilder.UnaryOperation(MathParser.NegativeFunction, undefined, ExpressionBuilder.BinaryOperation(ExpressionBuilder.Literal(1), ExpressionBuilder.BinaryOperation(ExpressionBuilder.Literal(1), ExpressionBuilder.BinaryOperation(value.Value.Arguments.Arguments[0], ExpressionBuilder.Literal(2), "^"), "+"), "/")), AnalyticalMath.Derivative(value.Value.Arguments.Arguments[0]), "*");
                 case "cosh":
-                    return ExpressionBuilder.GetBinaryOperation(ExpressionBuilder.GetUnaryOperation("sinh", value.Value.Arguments.Arguments), AnalyticalMath.Derivative(value.Value.Arguments.Arguments[0]), "*");
+                    return ExpressionBuilder.BinaryOperation(ExpressionBuilder.UnaryOperation("sinh", value.Value.Arguments.Arguments), AnalyticalMath.Derivative(value.Value.Arguments.Arguments[0]), "*");
                 case "sinh":
-                    return ExpressionBuilder.GetBinaryOperation(ExpressionBuilder.GetUnaryOperation("cosh", value.Value.Arguments.Arguments), AnalyticalMath.Derivative(value.Value.Arguments.Arguments[0]), "*");
+                    return ExpressionBuilder.BinaryOperation(ExpressionBuilder.UnaryOperation("cosh", value.Value.Arguments.Arguments), AnalyticalMath.Derivative(value.Value.Arguments.Arguments[0]), "*");
                 case "tanh":
-                    return ExpressionBuilder.GetBinaryOperation(ExpressionBuilder.GetBinaryOperation(ExpressionBuilder.GetLiteral(1), ExpressionBuilder.GetBinaryOperation(ExpressionBuilder.GetUnaryOperation("cosh", value.Value.Arguments.Arguments), ExpressionBuilder.GetLiteral(2), "^"), "/"), AnalyticalMath.Derivative(value.Value.Arguments.Arguments[0]), "*");
+                    return ExpressionBuilder.BinaryOperation(ExpressionBuilder.BinaryOperation(ExpressionBuilder.Literal(1), ExpressionBuilder.BinaryOperation(ExpressionBuilder.UnaryOperation("cosh", value.Value.Arguments.Arguments), ExpressionBuilder.Literal(2), "^"), "/"), AnalyticalMath.Derivative(value.Value.Arguments.Arguments[0]), "*");
                 case "coth":
-                    return ExpressionBuilder.GetUnaryOperation(MathParser.NegativeFunction, undefined, ExpressionBuilder.GetBinaryOperation(ExpressionBuilder.GetBinaryOperation(ExpressionBuilder.GetLiteral(1), ExpressionBuilder.GetBinaryOperation(ExpressionBuilder.GetUnaryOperation("sinh", value.Value.Arguments.Arguments), ExpressionBuilder.GetLiteral(2), "^"), "/"), AnalyticalMath.Derivative(value.Value.Arguments.Arguments[0]), "*"));
+                    return ExpressionBuilder.UnaryOperation(MathParser.NegativeFunction, undefined, ExpressionBuilder.BinaryOperation(ExpressionBuilder.BinaryOperation(ExpressionBuilder.Literal(1), ExpressionBuilder.BinaryOperation(ExpressionBuilder.UnaryOperation("sinh", value.Value.Arguments.Arguments), ExpressionBuilder.Literal(2), "^"), "/"), AnalyticalMath.Derivative(value.Value.Arguments.Arguments[0]), "*"));
                 case "acosh":
-                    return ExpressionBuilder.GetBinaryOperation(ExpressionBuilder.GetBinaryOperation(ExpressionBuilder.GetLiteral(1), ExpressionBuilder.GetUnaryOperation("sinh", undefined, ExpressionBuilder.GetUnaryOperation("acosh", value.Value.Arguments.Arguments)), "/"), AnalyticalMath.Derivative(value.Value.Arguments.Arguments[0]), "*");
+                    return ExpressionBuilder.BinaryOperation(ExpressionBuilder.BinaryOperation(ExpressionBuilder.Literal(1), ExpressionBuilder.UnaryOperation("sinh", undefined, ExpressionBuilder.UnaryOperation("acosh", value.Value.Arguments.Arguments)), "/"), AnalyticalMath.Derivative(value.Value.Arguments.Arguments[0]), "*");
                 case "asinh":
-                    return ExpressionBuilder.GetBinaryOperation(ExpressionBuilder.GetBinaryOperation(ExpressionBuilder.GetLiteral(1), ExpressionBuilder.GetUnaryOperation("cosh", undefined, ExpressionBuilder.GetUnaryOperation("asinh", value.Value.Arguments.Arguments)), "/"), AnalyticalMath.Derivative(value.Value.Arguments.Arguments[0]), "*");
+                    return ExpressionBuilder.BinaryOperation(ExpressionBuilder.BinaryOperation(ExpressionBuilder.Literal(1), ExpressionBuilder.UnaryOperation("cosh", undefined, ExpressionBuilder.UnaryOperation("asinh", value.Value.Arguments.Arguments)), "/"), AnalyticalMath.Derivative(value.Value.Arguments.Arguments[0]), "*");
+                case "ln":
+                    return ExpressionBuilder.BinaryOperation(AnalyticalMath.Derivative(value.Value.Arguments.Arguments[0]), value.Value.Arguments.Arguments[0], "/");
+                case "log":
+                    return AnalyticalMath.Derivative(ExpressionBuilder.BinaryOperation(ExpressionBuilder.UnaryOperation("ln", undefined, value.Value.Arguments.Arguments[0]), ExpressionBuilder.UnaryOperation("ln", undefined, value.Value.Arguments.Arguments[1]), "/"));
+                case "negative":
+                    return ExpressionBuilder.Literal(-1);
             }
         }
         else if (value.Value instanceof BinaryOperation) {
             switch (value.Value.Operator.Value) {
                 case "+":
-                    return new Operand(new BinaryOperation(AnalyticalMath.Derivative(value.Value.FirstOperand), AnalyticalMath.Derivative(value.Value.SecondOperand), ExpressionBuilder.FindOperator("+")));
+                    return ExpressionBuilder.BinaryOperation(AnalyticalMath.Derivative(value.Value.FirstOperand), AnalyticalMath.Derivative(value.Value.SecondOperand), "+");
                 case "-":
-                    return new Operand(new BinaryOperation(AnalyticalMath.Derivative(value.Value.FirstOperand), AnalyticalMath.Derivative(value.Value.SecondOperand), ExpressionBuilder.FindOperator("-")));
+                    return ExpressionBuilder.BinaryOperation(AnalyticalMath.Derivative(value.Value.FirstOperand), AnalyticalMath.Derivative(value.Value.SecondOperand), "-");
                 case "*":
-                    return new Operand(new BinaryOperation(new Operand(new BinaryOperation(AnalyticalMath.Derivative(value.Value.FirstOperand), value.Value.SecondOperand, ExpressionBuilder.FindOperator("*"))), new Operand(new BinaryOperation(value.Value.FirstOperand, AnalyticalMath.Derivative(value.Value.SecondOperand), ExpressionBuilder.FindOperator("*"))), ExpressionBuilder.FindOperator("+")));
+                    return ExpressionBuilder.BinaryOperation(ExpressionBuilder.BinaryOperation(AnalyticalMath.Derivative(value.Value.FirstOperand), value.Value.SecondOperand, "*"), ExpressionBuilder.BinaryOperation(value.Value.FirstOperand, AnalyticalMath.Derivative(value.Value.SecondOperand), "*"), "+");
+                case "/":
+                    return ExpressionBuilder.BinaryOperation(ExpressionBuilder.BinaryOperation(ExpressionBuilder.BinaryOperation(AnalyticalMath.Derivative(value.Value.FirstOperand), value.Value.SecondOperand, "*"), ExpressionBuilder.BinaryOperation(value.Value.FirstOperand, AnalyticalMath.Derivative(value.Value.SecondOperand), "*"), "-"), ExpressionBuilder.BinaryOperation(value.Value.SecondOperand, ExpressionBuilder.Literal(2), "^"), "/");
+                case "^":
+                    return ExpressionBuilder.BinaryOperation(ExpressionBuilder.BinaryOperation(value.Value.FirstOperand, value.Value.SecondOperand, "^"), AnalyticalMath.Derivative(ExpressionBuilder.BinaryOperation(ExpressionBuilder.UnaryOperation("ln", undefined, value.Value.FirstOperand), value.Value.SecondOperand, "*")), "*");
             }
         }
         throw new Error("Can't calc derivative");
