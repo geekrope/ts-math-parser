@@ -440,60 +440,7 @@ class PlainTextExpressionVisitor implements ExpressionVisitor
 	}
 	public BinaryOperationToString(operation: BinaryOperation, firstOperand: string, secondOperand: string): string
 	{
-		switch (operation.Operator.Value)
-		{
-			case "^":
-				let powerAfrer = () =>
-				{
-					return firstOperand + "^" + secondOperand;
-				};
-
-				let powerBefore = () =>
-				{
-					var funct = <UnaryOperation>operation.FirstOperand.Value;
-					return `${funct.Func.Type}^${secondOperand}(` + this.ArgumentsToString(funct.Arguments) + ")";
-				};
-
-				if (operation.FirstOperand.Value instanceof UnaryOperation)
-				{
-					var func = (operation.FirstOperand.Value).Func;
-					switch (func.Type)
-					{
-						case "cos":
-							return powerBefore();
-						case "sin":
-							return powerBefore();
-						case "tan":
-							return powerBefore();
-						case "cot":
-							return powerBefore();
-						case "cosh":
-							return powerBefore();
-						case "sinh":
-							return powerBefore();
-						case "tanh":
-							return powerBefore();
-						case "coth":
-							return powerBefore();
-						case "acos":
-							return powerBefore();
-						case "asin":
-							return powerBefore();
-						case "atan":
-							return powerBefore();
-						case "acot":
-							return powerBefore();
-						default:
-							return powerAfrer();
-					}
-				}
-				else
-				{
-					return powerAfrer();
-				}
-			default:
-				return `${firstOperand} ${operation.Operator.Value} ${secondOperand}`;
-		}
+		return `${firstOperand} ${operation.Operator.Value} ${secondOperand}`;
 	}
 }
 
@@ -1416,10 +1363,12 @@ function Evaluate()
 	let input = document.getElementById('inp');
 	let result = document.getElementById('res');
 	let expression = document.getElementById('expression');
-	if (input && result && expression)
+	let expressionPlain = document.getElementById('expressionPlain');
+	if (input && result && expression && expressionPlain)
 	{
 		result.innerHTML = UnitTests.EvaluateHelper((<HTMLInputElement>input).value).toString();
 		expression.innerHTML = "$" + MathParser.OperandToText(MathParser.Preprocess(MathParser.Parse((<HTMLInputElement>input).value)), new LatexExpressionVisitor()) + "$";
+		expressionPlain.innerHTML = MathParser.OperandToText(MathParser.Preprocess(MathParser.Parse((<HTMLInputElement>input).value)), new PlainTextExpressionVisitor())
 	}
 }
 
