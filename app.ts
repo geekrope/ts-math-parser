@@ -231,7 +231,8 @@ class LatexExpressionVisitor implements ExpressionVisitor
 		{
 			case "negative":
 				let argumentValue = operand.Arguments.Arguments[0].Value;
-				if (typeof argumentValue == "number" || typeof argumentValue == "boolean" || argumentValue instanceof Parameter || argumentValue instanceof UnaryOperation)
+
+				if (!(argumentValue instanceof BinaryOperation) || (argumentValue instanceof BinaryOperation && argumentValue.Operator.Value == "^"))
 				{
 					return "-" + innerFunction + "";
 				}
@@ -399,7 +400,7 @@ class PlainTextExpressionVisitor implements ExpressionVisitor
 		{
 			case "negative":
 				let argumentValue = operand.Arguments.Arguments[0].Value;
-				if (typeof argumentValue == "number" || typeof argumentValue == "boolean" || argumentValue instanceof Parameter || argumentValue instanceof UnaryOperation)
+				if (!(argumentValue instanceof BinaryOperation))
 				{
 					return "-" + innerFunction + "";
 				}
@@ -1148,10 +1149,11 @@ class MathParser
 				firstOperand = "(" + firstOperand + ")";
 			}
 		}
+
 		if (operation.SecondOperand.Value instanceof BinaryOperation)
 		{
 			var secondOperation = operation.SecondOperand.Value;
-			if ((secondOperation.Operator.OperatorLevel < operation.Operator.OperatorLevel || operation.Operator.Value == "-") && operation.Operator.Value != "^" && operation.Operator.Value != "/")
+			if (secondOperation.Operator.OperatorLevel < operation.Operator.OperatorLevel && operation.Operator.Value != "^" && operation.Operator.Value != "/")
 			{
 				secondOperand = "(" + secondOperand + ")";
 			}
@@ -1287,6 +1289,10 @@ class AnalyticalMath
 					return ExpressionBuilder.BinaryOperation(ExpressionBuilder.BinaryOperation(ExpressionBuilder.Literal(1), ExpressionBuilder.UnaryOperation("sinh", undefined, ExpressionBuilder.UnaryOperation("acosh", value.Value.Arguments.Arguments)), "/"), AnalyticalMath.Derivative(value.Value.Arguments.Arguments[0]), "*");
 				case "asinh":
 					return ExpressionBuilder.BinaryOperation(ExpressionBuilder.BinaryOperation(ExpressionBuilder.Literal(1), ExpressionBuilder.UnaryOperation("cosh", undefined, ExpressionBuilder.UnaryOperation("asinh", value.Value.Arguments.Arguments)), "/"), AnalyticalMath.Derivative(value.Value.Arguments.Arguments[0]), "*");
+				case "atanh":
+					return ExpressionBuilder.BinaryOperation(ExpressionBuilder.Literal(1), ExpressionBuilder.BinaryOperation(ExpressionBuilder.Literal(1), ExpressionBuilder.BinaryOperation(value.Value.Arguments.Arguments[0], ExpressionBuilder.Literal(2), "^"), "-"), "/");
+				case "acoth":
+					return ExpressionBuilder.BinaryOperation(ExpressionBuilder.Literal(1), ExpressionBuilder.BinaryOperation(ExpressionBuilder.Literal(1), ExpressionBuilder.BinaryOperation(value.Value.Arguments.Arguments[0], ExpressionBuilder.Literal(2), "^"), "-"), "/");
 
 				case "ln":
 					return ExpressionBuilder.BinaryOperation(AnalyticalMath.Derivative(value.Value.Arguments.Arguments[0]), value.Value.Arguments.Arguments[0], "/");
