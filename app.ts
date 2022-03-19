@@ -194,6 +194,29 @@ interface ExpressionVisitor
 
 class LatexExpressionVisitor implements ExpressionVisitor
 {
+	private Braces(operation: BinaryOperation, firstOperand: string, secondOperand: string)
+	{
+		if (operation.FirstOperand.Value instanceof BinaryOperation)
+		{
+			var firstOperation = operation.FirstOperand.Value;
+			if (firstOperation.Operator.OperatorLevel < operation.Operator.OperatorLevel && operation.Operator.Value != "/")
+			{
+				firstOperand = "(" + firstOperand + ")";
+			}
+		}
+
+		if (operation.SecondOperand.Value instanceof BinaryOperation)
+		{
+			var secondOperation = operation.SecondOperand.Value;
+			if (secondOperation.Operator.OperatorLevel < operation.Operator.OperatorLevel && operation.Operator.Value != "^" && operation.Operator.Value != "/")
+			{
+				secondOperand = "(" + secondOperand + ")";
+			}
+		}
+
+		return { firstOperand: firstOperand, secondOperand: secondOperand }
+	}
+
 	public LiteralToString(operand: literal): string
 	{
 		return operand.toString();
@@ -296,6 +319,11 @@ class LatexExpressionVisitor implements ExpressionVisitor
 	}
 	public BinaryOperationToString(operation: BinaryOperation, firstOperand: string, secondOperand: string): string
 	{
+		let fixedOperands = this.Braces(operation, firstOperand, secondOperand);
+
+		firstOperand = fixedOperands.firstOperand;
+		secondOperand = fixedOperands.secondOperand;
+
 		switch (operation.Operator.Value)
 		{
 			case "*":
@@ -371,6 +399,29 @@ class LatexExpressionVisitor implements ExpressionVisitor
 
 class PlainTextExpressionVisitor implements ExpressionVisitor
 {
+	private Braces(operation: BinaryOperation, firstOperand: string, secondOperand: string)
+	{
+		if (operation.FirstOperand.Value instanceof BinaryOperation)
+		{
+			var firstOperation = operation.FirstOperand.Value;
+			if (firstOperation.Operator.OperatorLevel < operation.Operator.OperatorLevel)
+			{
+				firstOperand = "(" + firstOperand + ")";
+			}
+		}
+
+		if (operation.SecondOperand.Value instanceof BinaryOperation)
+		{
+			var secondOperation = operation.SecondOperand.Value;
+			if (secondOperation.Operator.OperatorLevel < operation.Operator.OperatorLevel)
+			{
+				secondOperand = "(" + secondOperand + ")";
+			}
+		}
+
+		return { firstOperand: firstOperand, secondOperand: secondOperand }
+	}
+
 	public LiteralToString(operand: literal): string
 	{
 		return operand.toString();
@@ -440,6 +491,11 @@ class PlainTextExpressionVisitor implements ExpressionVisitor
 	}
 	public BinaryOperationToString(operation: BinaryOperation, firstOperand: string, secondOperand: string): string
 	{
+		let fixedOperands = this.Braces(operation, firstOperand, secondOperand);
+
+		firstOperand = fixedOperands.firstOperand;
+		secondOperand = fixedOperands.secondOperand;
+
 		return `${firstOperand} ${operation.Operator.Value} ${secondOperand}`;
 	}
 }
@@ -1087,24 +1143,6 @@ class MathParser
 	{
 		let firstOperand = MathParser.OperandToText(operation.FirstOperand, visitor);
 		let secondOperand = MathParser.OperandToText(operation.SecondOperand, visitor);
-
-		if (operation.FirstOperand.Value instanceof BinaryOperation)
-		{
-			var firstOperation = operation.FirstOperand.Value;
-			if ((firstOperation.Operator.OperatorLevel < operation.Operator.OperatorLevel || operation.Operator.Value == "-") && operation.Operator.Value != "/")
-			{
-				firstOperand = "(" + firstOperand + ")";
-			}
-		}
-
-		if (operation.SecondOperand.Value instanceof BinaryOperation)
-		{
-			var secondOperation = operation.SecondOperand.Value;
-			if (secondOperation.Operator.OperatorLevel < operation.Operator.OperatorLevel && operation.Operator.Value != "^" && operation.Operator.Value != "/")
-			{
-				secondOperand = "(" + secondOperand + ")";
-			}
-		}
 
 		return visitor.BinaryOperationToString(operation, firstOperand, secondOperand);
 	}

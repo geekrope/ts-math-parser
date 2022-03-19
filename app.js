@@ -108,6 +108,21 @@ class Preprocessor {
     }
 }
 class LatexExpressionVisitor {
+    Braces(operation, firstOperand, secondOperand) {
+        if (operation.FirstOperand.Value instanceof BinaryOperation) {
+            var firstOperation = operation.FirstOperand.Value;
+            if (firstOperation.Operator.OperatorLevel < operation.Operator.OperatorLevel && operation.Operator.Value != "/") {
+                firstOperand = "(" + firstOperand + ")";
+            }
+        }
+        if (operation.SecondOperand.Value instanceof BinaryOperation) {
+            var secondOperation = operation.SecondOperand.Value;
+            if (secondOperation.Operator.OperatorLevel < operation.Operator.OperatorLevel && operation.Operator.Value != "^" && operation.Operator.Value != "/") {
+                secondOperand = "(" + secondOperand + ")";
+            }
+        }
+        return { firstOperand: firstOperand, secondOperand: secondOperand };
+    }
     LiteralToString(operand) {
         return operand.toString();
     }
@@ -197,6 +212,9 @@ class LatexExpressionVisitor {
         }
     }
     BinaryOperationToString(operation, firstOperand, secondOperand) {
+        let fixedOperands = this.Braces(operation, firstOperand, secondOperand);
+        firstOperand = fixedOperands.firstOperand;
+        secondOperand = fixedOperands.secondOperand;
         switch (operation.Operator.Value) {
             case "*":
                 return `${firstOperand} \\cdot ${secondOperand}`;
@@ -262,6 +280,21 @@ class LatexExpressionVisitor {
     }
 }
 class PlainTextExpressionVisitor {
+    Braces(operation, firstOperand, secondOperand) {
+        if (operation.FirstOperand.Value instanceof BinaryOperation) {
+            var firstOperation = operation.FirstOperand.Value;
+            if (firstOperation.Operator.OperatorLevel < operation.Operator.OperatorLevel) {
+                firstOperand = "(" + firstOperand + ")";
+            }
+        }
+        if (operation.SecondOperand.Value instanceof BinaryOperation) {
+            var secondOperation = operation.SecondOperand.Value;
+            if (secondOperation.Operator.OperatorLevel < operation.Operator.OperatorLevel) {
+                secondOperand = "(" + secondOperand + ")";
+            }
+        }
+        return { firstOperand: firstOperand, secondOperand: secondOperand };
+    }
     LiteralToString(operand) {
         return operand.toString();
     }
@@ -320,6 +353,9 @@ class PlainTextExpressionVisitor {
         }
     }
     BinaryOperationToString(operation, firstOperand, secondOperand) {
+        let fixedOperands = this.Braces(operation, firstOperand, secondOperand);
+        firstOperand = fixedOperands.firstOperand;
+        secondOperand = fixedOperands.secondOperand;
         return `${firstOperand} ${operation.Operator.Value} ${secondOperand}`;
     }
 }
@@ -705,18 +741,6 @@ class MathParser {
     static BinaryOperationToLatexFormula(operation, visitor) {
         let firstOperand = MathParser.OperandToText(operation.FirstOperand, visitor);
         let secondOperand = MathParser.OperandToText(operation.SecondOperand, visitor);
-        if (operation.FirstOperand.Value instanceof BinaryOperation) {
-            var firstOperation = operation.FirstOperand.Value;
-            if ((firstOperation.Operator.OperatorLevel < operation.Operator.OperatorLevel || operation.Operator.Value == "-") && operation.Operator.Value != "/") {
-                firstOperand = "(" + firstOperand + ")";
-            }
-        }
-        if (operation.SecondOperand.Value instanceof BinaryOperation) {
-            var secondOperation = operation.SecondOperand.Value;
-            if (secondOperation.Operator.OperatorLevel < operation.Operator.OperatorLevel && operation.Operator.Value != "^" && operation.Operator.Value != "/") {
-                secondOperand = "(" + secondOperand + ")";
-            }
-        }
         return visitor.BinaryOperationToString(operation, firstOperand, secondOperand);
     }
 }
