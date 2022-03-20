@@ -922,6 +922,10 @@ class AnalyticalMath {
                     return ExpressionBuilder.BinaryOperation(ExpressionBuilder.BinaryOperation(ExpressionBuilder.FindConstant("e"), value.Value.Arguments.Arguments[0], "^"), AnalyticalMath.Derivative(value.Value.Arguments.Arguments[0]), "*");
                 case "abs":
                     return ExpressionBuilder.UnaryOperation("sign", undefined, value.Value.Arguments.Arguments[0]);
+                case "sqrt":
+                    return AnalyticalMath.Derivative(ExpressionBuilder.UnaryOperation("root", undefined, value.Value.Arguments.Arguments[0], ExpressionBuilder.Literal(2)));
+                case "cbrt":
+                    return AnalyticalMath.Derivative(ExpressionBuilder.UnaryOperation("root", undefined, value.Value.Arguments.Arguments[0], ExpressionBuilder.Literal(3)));
                 case "root":
                     return ExpressionBuilder.BinaryOperation(ExpressionBuilder.UnaryOperation("root", undefined, value.Value.Arguments.Arguments[0], value.Value.Arguments.Arguments[1]), AnalyticalMath.Derivative(ExpressionBuilder.BinaryOperation(ExpressionBuilder.UnaryOperation("ln", undefined, value.Value.Arguments.Arguments[0]), value.Value.Arguments.Arguments[1], "/")), "*");
                 case "negative":

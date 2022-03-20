@@ -1317,7 +1317,7 @@ class AnalyticalMath
 				case "sqrt":
 					return AnalyticalMath.Derivative(ExpressionBuilder.UnaryOperation("root", undefined, value.Value.Arguments.Arguments[0], ExpressionBuilder.Literal(2)));
 				case "cbrt":
-					return AnalyticalMath.Derivative(ExpressionBuilder.UnaryOperation("root", undefined, value.Value.Arguments.Arguments[0], ExpressionBuilder.Literal(2)));
+					return AnalyticalMath.Derivative(ExpressionBuilder.UnaryOperation("root", undefined, value.Value.Arguments.Arguments[0], ExpressionBuilder.Literal(3)));
 				case "root":
 					return ExpressionBuilder.BinaryOperation(ExpressionBuilder.UnaryOperation("root", undefined, value.Value.Arguments.Arguments[0], value.Value.Arguments.Arguments[1]), AnalyticalMath.Derivative(ExpressionBuilder.BinaryOperation(ExpressionBuilder.UnaryOperation("ln", undefined, value.Value.Arguments.Arguments[0]), value.Value.Arguments.Arguments[1], "/")), "*");
 
