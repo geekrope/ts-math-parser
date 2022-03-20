@@ -283,13 +283,13 @@ class PlainTextExpressionVisitor {
     Braces(operation, firstOperand, secondOperand) {
         if (operation.FirstOperand.Value instanceof BinaryOperation) {
             var firstOperation = operation.FirstOperand.Value;
-            if (firstOperation.Operator.OperatorLevel < operation.Operator.OperatorLevel) {
+            if (firstOperation.Operator.OperatorLevel < operation.Operator.OperatorLevel || operation.Operator.Value == "/") {
                 firstOperand = "(" + firstOperand + ")";
             }
         }
         if (operation.SecondOperand.Value instanceof BinaryOperation) {
             var secondOperation = operation.SecondOperand.Value;
-            if (secondOperation.Operator.OperatorLevel < operation.Operator.OperatorLevel) {
+            if (secondOperation.Operator.OperatorLevel < operation.Operator.OperatorLevel || operation.Operator.Value == "/") {
                 secondOperand = "(" + secondOperand + ")";
             }
         }
@@ -325,11 +325,11 @@ class PlainTextExpressionVisitor {
             case "ln":
                 return `log(${innerFunction};e)`;
             case "log":
-                return `log(${MathParser.OperandToText(operand.Arguments.Arguments[0], this)},${MathParser.OperandToText(operand.Arguments.Arguments[1], this)}`;
+                return `log(${MathParser.OperandToText(operand.Arguments.Arguments[0], this)};${MathParser.OperandToText(operand.Arguments.Arguments[1], this)})`;
             case "rand":
                 return "rand(" + innerFunction + ")";
             case "root":
-                return `root(${MathParser.OperandToText(operand.Arguments.Arguments[0], this)},${MathParser.OperandToText(operand.Arguments.Arguments[1], this)}`;
+                return `root(${MathParser.OperandToText(operand.Arguments.Arguments[0], this)};${MathParser.OperandToText(operand.Arguments.Arguments[1], this)})`;
             case "!":
                 return "not (" + innerFunction + ")";
             case "exp":
@@ -797,7 +797,8 @@ MathParser.Functions = [
         result *= i;
     } return result; }),
     new Preprocessor("f'", 1, (value) => {
-        return AnalyticalMath.Derivative(value);
+        let der = AnalyticalMath.Derivative(value);
+        return der;
     }),
     new MathFunction("rand", 2, (value) => { return Math.random() * (Extensions.asNumber(value[1]) - Extensions.asNumber(value[0])) + Extensions.asNumber(value[0]); }),
     new MathFunction("log", 2, (value) => { return Math.log(Extensions.asNumber(value[0])) / Math.log(Extensions.asNumber(value[1])); }),
@@ -834,6 +835,22 @@ class ExpressionBuilder {
         }
         else {
             return operator;
+        }
+    }
+    static FindConstant(constant) {
+        const parameter = MathParser.Constants.find((value) => {
+            if (value.Name == constant) {
+                return true;
+            }
+            else {
+                return false;
+            }
+        });
+        if (!parameter) {
+            throw new Error(`Constant ${constant} wasn't found`);
+        }
+        else {
+            return new Operand(parameter);
         }
     }
     static Literal(value) {
@@ -901,6 +918,12 @@ class AnalyticalMath {
                     return ExpressionBuilder.BinaryOperation(AnalyticalMath.Derivative(value.Value.Arguments.Arguments[0]), value.Value.Arguments.Arguments[0], "/");
                 case "log":
                     return AnalyticalMath.Derivative(ExpressionBuilder.BinaryOperation(ExpressionBuilder.UnaryOperation("ln", undefined, value.Value.Arguments.Arguments[0]), ExpressionBuilder.UnaryOperation("ln", undefined, value.Value.Arguments.Arguments[1]), "/"));
+                case "exp":
+                    return ExpressionBuilder.BinaryOperation(ExpressionBuilder.BinaryOperation(ExpressionBuilder.FindConstant("e"), value.Value.Arguments.Arguments[0], "^"), AnalyticalMath.Derivative(value.Value.Arguments.Arguments[0]), "*");
+                case "abs":
+                    return ExpressionBuilder.UnaryOperation("sign", undefined, value.Value.Arguments.Arguments[0]);
+                case "root":
+                    return ExpressionBuilder.BinaryOperation(ExpressionBuilder.UnaryOperation("root", undefined, value.Value.Arguments.Arguments[0], value.Value.Arguments.Arguments[1]), AnalyticalMath.Derivative(ExpressionBuilder.BinaryOperation(ExpressionBuilder.UnaryOperation("ln", undefined, value.Value.Arguments.Arguments[0]), value.Value.Arguments.Arguments[1], "/")), "*");
                 case "negative":
                     return ExpressionBuilder.Literal(-1);
             }
