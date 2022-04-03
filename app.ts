@@ -1344,6 +1344,95 @@ class AnalyticalMath
 
 		throw new Error("Can't calc derivative");
 	}
+
+	public static Simplify(operand: Operand): Operand
+	{
+		switch (operand.Value.constructor)
+		{
+			case ArgumentArray:
+				break;
+			case UnaryOperation:
+				break;
+			case BinaryOperation:
+				return AnalyticalMath.SimplifyBinaryOperation(operand);
+			default:
+				return operand;
+		}
+
+		//TODO remove after debugg
+		return operand;
+	}
+	private static SimplifyBinaryOperation(operand: Operand): Operand
+	{
+		if (!(operand.Value instanceof BinaryOperation))
+		{
+			throw new Error(`${operand.Value} is not a binary operation`);
+		}
+
+		switch (operand.Value.Operator.Value)
+		{
+			case "+":
+			case "-":
+				{
+					const first = AnalyticalMath.Simplify(operand.Value.FirstOperand);
+					const second = AnalyticalMath.Simplify(operand.Value.SecondOperand);
+					if (AnalyticalMath.Is0(first))
+					{
+						return second;
+					}
+					else if (AnalyticalMath.Is0(second))
+					{
+						return first;
+					}
+					else
+					{
+						return operand;
+					}
+				}
+			case "*":
+				{
+					const first = AnalyticalMath.Simplify(operand.Value.FirstOperand);
+					const second = AnalyticalMath.Simplify(operand.Value.SecondOperand);
+					if (AnalyticalMath.Is0(first) || AnalyticalMath.Is1(second))
+					{
+						return first;
+					}
+					else if (AnalyticalMath.Is0(second) || AnalyticalMath.Is1(first))
+					{
+						return second;
+					}
+					else
+					{
+						return operand;
+					}
+				}
+			case "/":
+				{
+					const first = AnalyticalMath.Simplify(operand.Value.FirstOperand);
+					const second = AnalyticalMath.Simplify(operand.Value.SecondOperand);
+					if (AnalyticalMath.Is0(first) || AnalyticalMath.Is1(second))
+					{
+						return first;
+					}
+					else
+					{
+						return operand;
+					}
+				}
+			default:
+				return operand;
+		}
+	}
+
+	private static Is0(operand: Operand): boolean
+	{
+		return typeof operand.Value == "number" && operand.Value == 0.0;
+	}
+
+	private static Is1(operand: Operand): boolean
+	{
+		return typeof operand.Value == "number" && operand.Value == 1.0;
+	}
 }
 
 interface TestCase
@@ -1449,6 +1538,51 @@ function Evaluate()
 
 UnitTests.DeclareTestCase(() =>
 {
+	const x_plus_0 = AnalyticalMath.Simplify(MathParser.Parse("x+0"));
+	UnitTests.IsTrue(MathParser.OperandToText(x_plus_0, new PlainTextExpressionVisitor) == "x");
+
+	const _0_plus_x = AnalyticalMath.Simplify(MathParser.Parse("0+x"));
+	UnitTests.IsTrue(MathParser.OperandToText(_0_plus_x, new PlainTextExpressionVisitor) == "x");
+});
+UnitTests.DeclareTestCase(() =>
+{
+	const x_mul_0 = AnalyticalMath.Simplify(MathParser.Parse("x*0"));
+	UnitTests.IsTrue(MathParser.OperandToText(x_mul_0, new PlainTextExpressionVisitor) == "0");
+
+	const _0_mul_x = AnalyticalMath.Simplify(MathParser.Parse("0*x"));
+	UnitTests.IsTrue(MathParser.OperandToText(_0_mul_x, new PlainTextExpressionVisitor) == "0");
+});
+UnitTests.DeclareTestCase(() =>
+{
+	const x_mul_1 = AnalyticalMath.Simplify(MathParser.Parse("x*1"));
+	UnitTests.IsTrue(MathParser.OperandToText(x_mul_1, new PlainTextExpressionVisitor) == "x");
+
+	const _1_mul_x = AnalyticalMath.Simplify(MathParser.Parse("1*x"));
+	UnitTests.IsTrue(MathParser.OperandToText(_1_mul_x, new PlainTextExpressionVisitor) == "x");
+});
+UnitTests.DeclareTestCase(() =>
+{
+	const _0_dev_x = AnalyticalMath.Simplify(MathParser.Parse("0/x"));
+	UnitTests.IsTrue(MathParser.OperandToText(_0_dev_x, new PlainTextExpressionVisitor) == "0");
+
+	const x_dev_0 = AnalyticalMath.Simplify(MathParser.Parse("x/0"));
+	UnitTests.IsTrue(MathParser.OperandToText(x_dev_0, new PlainTextExpressionVisitor) == "x / 0");
+});
+UnitTests.DeclareTestCase(() =>
+{
+	const _0_dev_x = AnalyticalMath.Simplify(MathParser.Parse("0/x"));
+	UnitTests.IsTrue(MathParser.OperandToText(_0_dev_x, new PlainTextExpressionVisitor) == "0");
+
+	const x_dev_0 = AnalyticalMath.Simplify(MathParser.Parse("x/0"));
+	UnitTests.IsTrue(MathParser.OperandToText(x_dev_0, new PlainTextExpressionVisitor) == "x / 0");
+});
+UnitTests.DeclareTestCase(() =>
+{
+	const expression = AnalyticalMath.Simplify(MathParser.Parse("((x + (x * (0 / (x * 2)))) * 1) / 1"));
+	UnitTests.IsTrue(MathParser.OperandToText(expression, new PlainTextExpressionVisitor) == "x");
+});
+UnitTests.DeclareTestCase(() =>
+{
 	UnitTests.AreEqual("cos(3550/20)*20+100", Math.cos(3550 / 20.0) * 20 + 100);
 });
 UnitTests.DeclareTestCase(() =>
@@ -1551,4 +1685,4 @@ UnitTests.DeclareTestCase(() =>
 	UnitTests.ThrowError("sinhh(10)");
 });
 
-//UnitTests.RunTests()
+UnitTests.RunTests()
