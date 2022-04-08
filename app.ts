@@ -1442,17 +1442,17 @@ class AnalyticalMath
         switch (binaryOperation.Operator.Value)
         {
             case "+":
-                return AnalyticalMath.Add(binaryOperation);
+                return AnalyticalMath.SimplifyAdd(binaryOperation);
             case "-":
-                return AnalyticalMath.Sub(binaryOperation);
+                return AnalyticalMath.SimplifySub(binaryOperation);
             case "*":
-                return AnalyticalMath.Mul(binaryOperation);
+                return AnalyticalMath.SimplifyMul(binaryOperation);
             case "/":
-                return AnalyticalMath.Div(binaryOperation);
+                return AnalyticalMath.SimplifyDiv(binaryOperation);
             case "%":
-                return AnalyticalMath.Mod(binaryOperation);
+                return AnalyticalMath.SimplifyMod(binaryOperation);
             case "^":
-                return AnalyticalMath.Power(binaryOperation);
+                return AnalyticalMath.SimplifyPower(binaryOperation);
             default:
                 const first = AnalyticalMath.Simplify(binaryOperation.FirstOperand);
                 const second = AnalyticalMath.Simplify(binaryOperation.SecondOperand);
@@ -1475,7 +1475,7 @@ class AnalyticalMath
         return typeof operand.Value == "number" && operand.Value == -1.0;
     }
 
-    private static Add(binaryOperation: BinaryOperation): Operand
+    private static SimplifyAdd(binaryOperation: BinaryOperation): Operand
     {
         const first = AnalyticalMath.Simplify(binaryOperation.FirstOperand);
         const second = AnalyticalMath.Simplify(binaryOperation.SecondOperand);
@@ -1493,7 +1493,7 @@ class AnalyticalMath
         }
     }
 
-    private static Sub(binaryOperation: BinaryOperation): Operand
+    private static SimplifySub(binaryOperation: BinaryOperation): Operand
     {
         const second = AnalyticalMath.Simplify(binaryOperation.SecondOperand);
         if (AnalyticalMath.Is0(second))
@@ -1507,7 +1507,7 @@ class AnalyticalMath
         }
     }
 
-    private static Mul(binaryOperation: BinaryOperation): Operand
+    private static SimplifyMul(binaryOperation: BinaryOperation): Operand
     {
         const first = AnalyticalMath.Simplify(binaryOperation.FirstOperand);
         const second = AnalyticalMath.Simplify(binaryOperation.SecondOperand);
@@ -1525,10 +1525,18 @@ class AnalyticalMath
         }
     }
 
-    private static Div(binaryOperation: BinaryOperation): Operand
+    private static SimplifyDiv(binaryOperation: BinaryOperation): Operand
     {
         const first = AnalyticalMath.Simplify(binaryOperation.FirstOperand);
         const second = AnalyticalMath.Simplify(binaryOperation.SecondOperand);
+        // TODO
+        // !AnalyticalMath.Is0(second) is not enought condition for divider check.
+        // The divider can be an expression that evaluates to 0, such as sin(x-x) etc.
+        // In this case, binary operation should not simplified. Otherwise the domain of definition
+        // of the original expression will be changed.
+        // For example: acos(1) / sin(x-x) = NaN. 
+        // But if devider is undefined, the binary operation should be simplified:
+        // For example: acos(1) / ln(0) = 0.
         if ((AnalyticalMath.Is0(first) && !AnalyticalMath.Is0(second)) || AnalyticalMath.Is1(second))
         {
             return first;
@@ -1539,7 +1547,7 @@ class AnalyticalMath
         }
     }
 
-    private static Mod(binaryOperation: BinaryOperation): Operand
+    private static SimplifyMod(binaryOperation: BinaryOperation): Operand
     {
         const first = AnalyticalMath.Simplify(binaryOperation.FirstOperand);
         const second = AnalyticalMath.Simplify(binaryOperation.SecondOperand);
@@ -1557,7 +1565,7 @@ class AnalyticalMath
         }
     }
 
-    private static Power(binaryOperation: BinaryOperation): Operand
+    private static SimplifyPower(binaryOperation: BinaryOperation): Operand
     {
         const second = AnalyticalMath.Simplify(binaryOperation.SecondOperand);
         if (AnalyticalMath.Is0(second))
@@ -1742,14 +1750,17 @@ UnitTests.DeclareTestCase(() =>
 });
 UnitTests.DeclareTestCase(() =>
 {
-    const _0_dev_0 = AnalyticalMath.Simplify(MathParser.Parse("0/0"));
-    UnitTests.IsTrue(MathParser.OperandToText(_0_dev_0, new PlainTextExpressionVisitor) == "0 / 0");
+    const _0_div_0 = AnalyticalMath.Simplify(MathParser.Parse("0/0"));
+    UnitTests.IsTrue(MathParser.OperandToText(_0_div_0, new PlainTextExpressionVisitor) == "0 / 0");
 
-    const _0_dev_x = AnalyticalMath.Simplify(MathParser.Parse("0/x"));
-    UnitTests.IsTrue(MathParser.OperandToText(_0_dev_x, new PlainTextExpressionVisitor) == "0");
+    const _0_div_expr = AnalyticalMath.Simplify(MathParser.Parse("0/sqrt(4-5)"));
+    UnitTests.IsTrue(MathParser.OperandToText(_0_div_expr, new PlainTextExpressionVisitor) == "0");
 
-    const x_dev_0 = AnalyticalMath.Simplify(MathParser.Parse("x/0"));
-    UnitTests.IsTrue(MathParser.OperandToText(x_dev_0, new PlainTextExpressionVisitor) == "x / 0");
+    const _0_div_x = AnalyticalMath.Simplify(MathParser.Parse("0/(x-x)"));
+    UnitTests.IsTrue(MathParser.OperandToText(_0_div_x, new PlainTextExpressionVisitor) == "0");
+
+    const x_div_0 = AnalyticalMath.Simplify(MathParser.Parse("x/0"));
+    UnitTests.IsTrue(MathParser.OperandToText(x_div_0, new PlainTextExpressionVisitor) == "x / 0");
 });
 
                /* case "sin":

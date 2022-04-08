@@ -1241,12 +1241,14 @@ UnitTests.DeclareTestCase(() => {
     UnitTests.IsTrue(MathParser.OperandToText(x_mul_1_mul_x, new PlainTextExpressionVisitor) == "x * x");
 });
 UnitTests.DeclareTestCase(() => {
-    const _0_dev_0 = AnalyticalMath.Simplify(MathParser.Parse("0/0"));
-    UnitTests.IsTrue(MathParser.OperandToText(_0_dev_0, new PlainTextExpressionVisitor) == "0 / 0");
-    const _0_dev_x = AnalyticalMath.Simplify(MathParser.Parse("0/x"));
-    UnitTests.IsTrue(MathParser.OperandToText(_0_dev_x, new PlainTextExpressionVisitor) == "0");
-    const x_dev_0 = AnalyticalMath.Simplify(MathParser.Parse("x/0"));
-    UnitTests.IsTrue(MathParser.OperandToText(x_dev_0, new PlainTextExpressionVisitor) == "x / 0");
+    const _0_div_0 = AnalyticalMath.Simplify(MathParser.Parse("0/0"));
+    UnitTests.IsTrue(MathParser.OperandToText(_0_div_0, new PlainTextExpressionVisitor) == "0 / 0");
+    const _0_div_expr = AnalyticalMath.Simplify(MathParser.Parse("0/sqrt(4-5)"));
+    UnitTests.IsTrue(MathParser.OperandToText(_0_div_expr, new PlainTextExpressionVisitor) == "0");
+    const _0_div_x = AnalyticalMath.Simplify(MathParser.Parse("0/(x-x)"));
+    UnitTests.IsTrue(MathParser.OperandToText(_0_div_x, new PlainTextExpressionVisitor) == "0");
+    const x_div_0 = AnalyticalMath.Simplify(MathParser.Parse("x/0"));
+    UnitTests.IsTrue(MathParser.OperandToText(x_div_0, new PlainTextExpressionVisitor) == "x / 0");
 });
 UnitTests.DeclareTestCase(() => {
     const expression1 = AnalyticalMath.Simplify(MathParser.Parse("((x + (x * (0 / (x * 2)))) * 1) / 1"));
