@@ -1578,7 +1578,7 @@ class AnalyticalMath
         }
         else
         {
-            const first = AnalyticalMath.Simplify(binaryOperation.SecondOperand);
+            const first = AnalyticalMath.Simplify(binaryOperation.FirstOperand);
             return new Operand(new BinaryOperation(first, second, binaryOperation.Operator));
         }
     }
