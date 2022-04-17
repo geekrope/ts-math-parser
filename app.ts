@@ -1392,7 +1392,6 @@ class AnalyticalMath
                 case "acos":
                 case "acosh":
                 case "ln":
-                case "log":
                     if (AnalyticalMath.Is1(argument))
                     {
                         return AnalyticalMath.const_0;
@@ -1431,6 +1430,29 @@ class AnalyticalMath
                     break;
                 default:
                     return new Operand(new UnaryOperation(new ArgumentArray([AnalyticalMath.Simplify(argument)]), func));
+            }
+        }
+        else if (operand.Value.Arguments.Length == 2)
+        {
+            const argument = AnalyticalMath.Simplify(operand.Value.Arguments.Arguments[0]);
+            const func = operand.Value.Func;
+            switch (func.Type)
+            {
+                case "log":
+                    if (AnalyticalMath.Is1(argument))
+                    {
+                        return AnalyticalMath.const_0;
+                    }
+                    break;
+            }
+        }
+
+        if (operand.Value.Arguments.Length > 1)
+        {
+            for (let i = 0; i < operand.Value.Arguments.Length; i++)
+            {
+                const argument = AnalyticalMath.Simplify(operand.Value.Arguments.Arguments[i]);
+                operand.Value.Arguments.Arguments[i] = argument;
             }
         }
 
@@ -1762,15 +1784,87 @@ UnitTests.DeclareTestCase(() =>
     const x_div_0 = AnalyticalMath.Simplify(MathParser.Parse("x/0"));
     UnitTests.IsTrue(MathParser.OperandToText(x_div_0, new PlainTextExpressionVisitor) == "x / 0");
 });
+UnitTests.DeclareTestCase(() =>
+{
+    const functions = ["sin", "sinh", "tan", "tanh", "asin", "asinh", "atan", "atanh",];
+    for (const func of functions)
+    {
+        const expression = AnalyticalMath.Simplify(MathParser.Parse(`${func}(0)`));
+        UnitTests.IsTrue(MathParser.OperandToText(expression, new PlainTextExpressionVisitor) == "0");
+    }
 
-               /* case "sin":
-                case "sinh":
-                case "tan":
-                case "tanh":
-                case "asin":
-                case "asinh":
-                case "atan":
-                case "atanh": */
+    for (const func of functions)
+    {
+        const expression = AnalyticalMath.Simplify(MathParser.Parse(`${func}(x*2)`));
+        UnitTests.IsTrue(MathParser.OperandToText(expression, new PlainTextExpressionVisitor) == `${func}(x * 2)`);
+    }
+});
+UnitTests.DeclareTestCase(() =>
+{
+    const functions = [/*"sec", */"cos", "cosh", "exp",];
+    for (const func of functions)
+    {
+        const expression = AnalyticalMath.Simplify(MathParser.Parse(`${func}(0)`));
+        UnitTests.IsTrue(MathParser.OperandToText(expression, new PlainTextExpressionVisitor) == "1");
+    }
+
+    for (const func of functions)
+    {
+        const expression = AnalyticalMath.Simplify(MathParser.Parse(`${func}(1)`));
+        if (func == "exp")
+        {
+            UnitTests.IsTrue(MathParser.OperandToText(expression, new PlainTextExpressionVisitor) == "e^{1}");
+        }
+        else
+        {
+            UnitTests.IsTrue(MathParser.OperandToText(expression, new PlainTextExpressionVisitor) == `${func}(1)`);
+        }
+    }
+});
+
+UnitTests.DeclareTestCase(() =>
+{
+    const functions = [/*"asec", */"acos", "acosh", "ln",];
+    for (const func of functions)
+    {
+        const expression = AnalyticalMath.Simplify(MathParser.Parse(`${func}(1)`));
+        UnitTests.IsTrue(MathParser.OperandToText(expression, new PlainTextExpressionVisitor) == "0");
+    }
+
+    for (const func of functions)
+    {
+        const expression = AnalyticalMath.Simplify(MathParser.Parse(`${func}(x-a)`));
+        if (func == "ln")
+        {
+            UnitTests.IsTrue(MathParser.OperandToText(expression, new PlainTextExpressionVisitor) == "log(x - a;e)");
+        }
+        else
+        {
+            UnitTests.IsTrue(MathParser.OperandToText(expression, new PlainTextExpressionVisitor) == `${func}(x - a)`);
+        }
+    }
+});
+UnitTests.DeclareTestCase(() =>
+{
+    const expression = AnalyticalMath.Simplify(MathParser.Parse("log(1; 2.718)"));
+    UnitTests.IsTrue(MathParser.OperandToText(expression, new PlainTextExpressionVisitor) == "0");
+
+    const expression2 = AnalyticalMath.Simplify(MathParser.Parse("log(b; x)"));
+    UnitTests.IsTrue(MathParser.OperandToText(expression2, new PlainTextExpressionVisitor) == "log(b;x)");
+});
+UnitTests.DeclareTestCase(() =>
+{
+    for (const argument of ["0", "1"])
+    {
+        const expression = AnalyticalMath.Simplify(MathParser.Parse(`fact(${argument})`));
+        UnitTests.IsTrue(MathParser.OperandToText(expression, new PlainTextExpressionVisitor) == "1");
+    }
+
+    const expression = AnalyticalMath.Simplify(MathParser.Parse("fact(x/y)"));
+    //TODO a complex expression of the factorial should be in parentheses. 
+    // Please, fix the PlainTextExpressionVisitor and then fix this unit test.
+    UnitTests.IsTrue(MathParser.OperandToText(expression, new PlainTextExpressionVisitor) == "x / y!");
+});
 
 UnitTests.DeclareTestCase(() =>
 {
