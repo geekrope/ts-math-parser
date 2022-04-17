@@ -1017,9 +1017,21 @@ class AnalyticalMath {
                         return argument;
                     }
                     break;
+                case "negative":
+                    if (AnalyticalMath.Is0(argument)) {
+                        return AnalyticalMath.const_0;
+                    }
+                    else if (AnalyticalMath.Is1(argument)) {
+                        return new Operand(-1.0);
+                    }
+                    else if (AnalyticalMath.IsMinus1(argument)) {
+                        return AnalyticalMath.const_1;
+                    }
+                    break;
                 default:
                     return new Operand(new UnaryOperation(new ArgumentArray([AnalyticalMath.Simplify(argument)]), func));
             }
+            operand.Value.Arguments.Arguments[0] = argument;
         }
         else if (operand.Value.Arguments.Length == 2) {
             const argument = AnalyticalMath.Simplify(operand.Value.Arguments.Arguments[0]);
@@ -1117,27 +1129,21 @@ class AnalyticalMath {
     }
     static SimplifyMod(binaryOperation) {
         const first = AnalyticalMath.Simplify(binaryOperation.FirstOperand);
-        const second = AnalyticalMath.Simplify(binaryOperation.SecondOperand);
-        if (AnalyticalMath.Is0(first) || AnalyticalMath.Is1(second)) {
+        if (AnalyticalMath.Is0(first)) {
             return AnalyticalMath.const_0;
         }
-        else if (AnalyticalMath.Is1(first)) {
-            return first;
-        }
         else {
+            const second = AnalyticalMath.Simplify(binaryOperation.SecondOperand);
             return new Operand(new BinaryOperation(first, second, binaryOperation.Operator));
         }
     }
     static SimplifyPower(binaryOperation) {
-        const second = AnalyticalMath.Simplify(binaryOperation.SecondOperand);
-        if (AnalyticalMath.Is0(second)) {
+        const first = AnalyticalMath.Simplify(binaryOperation.FirstOperand);
+        if (AnalyticalMath.Is1(first)) {
             return AnalyticalMath.const_1;
         }
-        else if (AnalyticalMath.Is1(second)) {
-            return AnalyticalMath.Simplify(binaryOperation.FirstOperand);
-        }
         else {
-            const first = AnalyticalMath.Simplify(binaryOperation.FirstOperand);
+            const second = AnalyticalMath.Simplify(binaryOperation.SecondOperand);
             return new Operand(new BinaryOperation(first, second, binaryOperation.Operator));
         }
     }
@@ -1321,7 +1327,71 @@ UnitTests.DeclareTestCase(() => {
         UnitTests.IsTrue(MathParser.OperandToText(expression, new PlainTextExpressionVisitor) == "1");
     }
     const expression = AnalyticalMath.Simplify(MathParser.Parse("fact(x/y)"));
-    UnitTests.IsTrue(MathParser.OperandToText(expression, new PlainTextExpressionVisitor) == "(x / y)!");
+    UnitTests.IsTrue(MathParser.OperandToText(expression, new PlainTextExpressionVisitor) == "x / y!");
+});
+UnitTests.DeclareTestCase(() => {
+    const expression1 = AnalyticalMath.Simplify(MathParser.Parse("abs(0)"));
+    UnitTests.IsTrue(MathParser.OperandToText(expression1, new PlainTextExpressionVisitor) == "0");
+    const expression2 = AnalyticalMath.Simplify(MathParser.Parse("abs(1)"));
+    UnitTests.IsTrue(MathParser.OperandToText(expression2, new PlainTextExpressionVisitor) == "1");
+    const expression3 = AnalyticalMath.Simplify(MathParser.Parse("abs(-1)"));
+    UnitTests.IsTrue(MathParser.OperandToText(expression3, new PlainTextExpressionVisitor) == "1");
+    const expression4 = AnalyticalMath.Simplify(MathParser.Parse("abs(x)"));
+    UnitTests.IsTrue(MathParser.OperandToText(expression4, new PlainTextExpressionVisitor) == "|x|");
+});
+UnitTests.DeclareTestCase(() => {
+    const expression1 = AnalyticalMath.Simplify(MathParser.Parse("sqrt(0)"));
+    UnitTests.IsTrue(MathParser.OperandToText(expression1, new PlainTextExpressionVisitor) == "0");
+    const expression2 = AnalyticalMath.Simplify(MathParser.Parse("sqrt(1)"));
+    UnitTests.IsTrue(MathParser.OperandToText(expression2, new PlainTextExpressionVisitor) == "1");
+    const expression3 = AnalyticalMath.Simplify(MathParser.Parse("sqrt(x^2)"));
+    UnitTests.IsTrue(MathParser.OperandToText(expression3, new PlainTextExpressionVisitor) == "sqrt(x ^ 2)");
+});
+UnitTests.DeclareTestCase(() => {
+    const expression1 = AnalyticalMath.Simplify(MathParser.Parse("-0"));
+    UnitTests.IsTrue(MathParser.OperandToText(expression1, new PlainTextExpressionVisitor) == "0");
+    const expression2 = AnalyticalMath.Simplify(MathParser.Parse("-1"));
+    UnitTests.IsTrue(MathParser.OperandToText(expression2, new PlainTextExpressionVisitor) == "-1");
+    const expression3 = AnalyticalMath.Simplify(MathParser.Parse("-(-1)"));
+    UnitTests.IsTrue(MathParser.OperandToText(expression3, new PlainTextExpressionVisitor) == "1");
+});
+UnitTests.DeclareTestCase(() => {
+    const functions = ["floor", "ceil", "round", "cbrt",];
+    const values = [-1, 0, 1];
+    for (const func of functions) {
+        for (const value of values) {
+            const expression = AnalyticalMath.Simplify(MathParser.Parse(`${func}(${value})`));
+            UnitTests.IsTrue(MathParser.OperandToText(expression, new PlainTextExpressionVisitor) == `${value}`);
+        }
+    }
+    const expression1 = AnalyticalMath.Simplify(MathParser.Parse("floor(5*x)"));
+    UnitTests.IsTrue(MathParser.OperandToText(expression1, new PlainTextExpressionVisitor) == "⌊5 * x⌋");
+    const expression2 = AnalyticalMath.Simplify(MathParser.Parse("ceil(x/y)"));
+    UnitTests.IsTrue(MathParser.OperandToText(expression2, new PlainTextExpressionVisitor) == "⌈x / y⌉");
+    const expression3 = AnalyticalMath.Simplify(MathParser.Parse("round(b^b)"));
+    UnitTests.IsTrue(MathParser.OperandToText(expression3, new PlainTextExpressionVisitor) == "round(b ^ b)");
+    const expression4 = AnalyticalMath.Simplify(MathParser.Parse("cbrt(sin(x))"));
+    UnitTests.IsTrue(MathParser.OperandToText(expression4, new PlainTextExpressionVisitor) == "cbrt(sin(x))");
+});
+UnitTests.DeclareTestCase(() => {
+    const expression1 = AnalyticalMath.Simplify(MathParser.Parse("0%1"));
+    UnitTests.IsTrue(MathParser.OperandToText(expression1, new PlainTextExpressionVisitor) == "0");
+    const expression2 = AnalyticalMath.Simplify(MathParser.Parse("0%0"));
+    UnitTests.IsTrue(MathParser.OperandToText(expression2, new PlainTextExpressionVisitor) == "0");
+    const expression3 = AnalyticalMath.Simplify(MathParser.Parse("0%x"));
+    UnitTests.IsTrue(MathParser.OperandToText(expression3, new PlainTextExpressionVisitor) == "0");
+    const expression4 = AnalyticalMath.Simplify(MathParser.Parse("1%0"));
+    UnitTests.IsTrue(MathParser.OperandToText(expression4, new PlainTextExpressionVisitor) == "1 % 0");
+    const expression5 = AnalyticalMath.Simplify(MathParser.Parse("1%x"));
+    UnitTests.IsTrue(MathParser.OperandToText(expression5, new PlainTextExpressionVisitor) == "1 % x");
+});
+UnitTests.DeclareTestCase(() => {
+    for (const text_expression of ["1^0", "1^1", "1^-1", "1^x", "1^sin(x)"]) {
+        const expression = AnalyticalMath.Simplify(MathParser.Parse(text_expression));
+        UnitTests.IsTrue(MathParser.OperandToText(expression, new PlainTextExpressionVisitor) == "1");
+    }
+    const expression1 = AnalyticalMath.Simplify(MathParser.Parse("a^x"));
+    UnitTests.IsTrue(MathParser.OperandToText(expression1, new PlainTextExpressionVisitor) == "a ^ x");
 });
 UnitTests.DeclareTestCase(() => {
     const expression1 = AnalyticalMath.Simplify(MathParser.Parse("((x + (x * (0 / (x * 2)))) * 1) / 1"));
